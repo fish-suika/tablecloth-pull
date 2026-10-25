@@ -138,7 +138,7 @@ function failedFate(ids, verdict, cfg) {
 }
 // X に投稿する文章（url が空なら文章だけ）
 function shareText(streak, best, cfg, url) {
-  const head = streak > 0 ? 'テーブルクロス引きで ' + streak + '連続成功！（' + rankFor(streak, cfg) + '）' : 'テーブルクロス引きに挑戦！';
+  const head = streak > 0 ? 'テーブルクロス名人で ' + streak + '連続成功！（' + rankFor(streak, cfg) + '）' : 'テーブルクロス名人に挑戦！';
   return head + (best > streak ? ' 自己ベスト' + best + '連続' : '') + ' #' + cfg.share.hashtag;
 }
 // PC 用：X の投稿画面を開く URL

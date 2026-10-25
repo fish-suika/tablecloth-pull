@@ -112,7 +112,7 @@
     const bg = g.createLinearGradient(0, 0, 0, 1350); bg.addColorStop(0, '#3b2a5c'); bg.addColorStop(1, '#1d1530');
     g.fillStyle = bg; g.fillRect(0, 0, 1080, 1350);
     for (let i = 0; i < 60; i++) { g.fillStyle = ['#ff6b6b', '#ffd43b', '#51cf66', '#339af0', '#da77f2'][i % 5]; g.save(); g.translate((i * 197) % 1080, (i * 331) % 1350); g.rotate(i); g.fillRect(0, 0, 18, 30); g.restore(); }
-    g.textAlign = 'center'; g.fillStyle = '#fff'; g.font = '900 64px ' + F; g.fillText('テーブルクロス引き（仮）', 540, 190);
+    g.textAlign = 'center'; g.fillStyle = '#fff'; g.font = '900 64px ' + F; g.fillText('テーブルクロス名人', 540, 190);
     g.fillStyle = '#ffd43b'; g.font = '900 360px ' + F; g.fillText(String(lastResult.streak), 540, 700);
     g.fillStyle = '#fff'; g.font = '900 72px ' + F; g.fillText('連続成功', 540, 810);
     g.fillStyle = '#ffd43b'; g.font = '900 64px ' + F; g.fillText('称号：' + rankFor(lastResult.streak, CFG), 540, 930);

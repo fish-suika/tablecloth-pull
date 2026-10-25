@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<title>検証 — テーブルクロス引き</title>
+<title>検証 — テーブルクロス名人</title>
 <style>
   body{font-family:"Yu Gothic UI",system-ui,sans-serif;background:#1c1c1e;color:#eee;padding:24px;line-height:1.7}
   h1{font-size:18px;margin-bottom:16px}
@@ -15,7 +15,7 @@
 </style>
 </head>
 <body>
-<h1>テーブルクロス引き — 検証</h1>
+<h1>テーブルクロス名人 — 検証</h1>
 <div id="out"></div>
 <div id="sum"></div>
 <script>
@@ -73,7 +73,7 @@ const CFG = {
     { from: 10, name: '宴会の達人' }, { from: 15, name: '神業の名人' }, { from: 20, name: '人間国宝' }, { from: 30, name: 'テーブルクロス王' },
   ],
   // X 共有：hashtag は「#」なし。url は公開したら入れる（空なら、いま開いているページの URL を使う）
-  share: { hashtag: 'テーブルクロス引き', url: '' },
+  share: { hashtag: 'テーブルクロス名人', url: '' },
   // 褒め言葉：from 連続以上で使う。連続数が増えるほど大きく褒める。near はギリギリ成功のとき
   praise: {
     ok: [
@@ -247,7 +247,7 @@ function failedFate(ids, verdict, cfg) {
 }
 // X に投稿する文章（url が空なら文章だけ）
 function shareText(streak, best, cfg, url) {
-  const head = streak > 0 ? 'テーブルクロス引きで ' + streak + '連続成功！（' + rankFor(streak, cfg) + '）' : 'テーブルクロス引きに挑戦！';
+  const head = streak > 0 ? 'テーブルクロス名人で ' + streak + '連続成功！（' + rankFor(streak, cfg) + '）' : 'テーブルクロス名人に挑戦！';
   return head + (best > streak ? ' 自己ベスト' + best + '連続' : '') + ' #' + cfg.share.hashtag;
 }
 // PC 用：X の投稿画面を開く URL
