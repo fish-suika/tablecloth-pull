@@ -29,23 +29,51 @@ function buildVase() {
   return castAll(g);
 }
 
-// トランプタワー：A 字に立てかけたカードを3段
+// トランプタワー：A 字に立てかけたカードの組を並べ、段のあいだに1枚ずつ寝かせて重ねる（3段＝3組・2組・1組）
+// カードは手前の面に柄（ハート・スペード…）、裏は赤い格子。横から見て A 字になるよう、手前のカードは上が奥へ、奥のカードは上が手前へ傾く
+let _cardTex = null;
+function cardTextures() {
+  if (_cardTex) return _cardTex;
+  const mk = draw => { const c = document.createElement('canvas'); c.width = 96; c.height = 144; draw(c.getContext('2d')); const t = new THREE.CanvasTexture(c); t.anisotropy = 4; return t; };
+  const face = suit => mk(g => {
+    g.fillStyle = '#fffdf8'; g.fillRect(0, 0, 96, 144);
+    g.strokeStyle = '#d9d4c8'; g.lineWidth = 5; g.strokeRect(2, 2, 92, 140);
+    g.fillStyle = (suit === '♥' || suit === '♦') ? '#d6283c' : '#25252b';
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.font = '900 70px serif'; g.fillText(suit, 48, 74);
+    g.font = '900 24px serif'; g.fillText(suit, 16, 18); g.fillText(suit, 80, 126);
+  });
+  const back = mk(g => {
+    g.fillStyle = '#c92a3d'; g.fillRect(0, 0, 96, 144);
+    g.strokeStyle = '#ffe3e8'; g.lineWidth = 3; g.strokeRect(8, 8, 80, 128);
+    g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 2;
+    for (let i = -144; i < 144; i += 16) { g.beginPath(); g.moveTo(8, 8 + i + 144); g.lineTo(88, 8 + i + 64); g.stroke(); g.beginPath(); g.moveTo(8, 8 + i); g.lineTo(88, 8 + i + 80); g.stroke(); }
+  });
+  _cardTex = { faces: ['♥', '♠', '♦', '♣'].map(face), back };
+  return _cardTex;
+}
+
 function buildCardTower() {
   const g = new THREE.Group();
-  const card = std(0xffffff, { roughness: 0.5 }), back = std(0xe03148, { roughness: 0.5 });
-  const cw = 0.36, ch = 0.5, lean = 0.34, tiers = 3;
+  const tx = cardTextures();
+  const edge = std(0xf1ece0, { roughness: 0.6 });
+  const cw = 0.31, ch = 0.5, th = 0.014, lean = 0.4, pitch = 0.36, tiers = 3;
+  const dz = ch / 2 * Math.sin(lean), cardH = ch * Math.cos(lean);
+  const mkCard = k => new THREE.MeshStandardMaterial({ map: tx.faces[k % 4], roughness: 0.55 });
+  const backM = new THREE.MeshStandardMaterial({ map: tx.back, roughness: 0.55 });
+  let y = 0.0, k = 0;
   for (let t = 0; t < tiers; t++) {
-    const n = tiers - t, y = t * (ch * Math.cos(lean) + 0.02), width = n * 0.34;
+    const n = tiers - t;
     for (let i = 0; i < n; i++) {
-      const cx = -width / 2 + 0.17 + i * 0.34;
-      for (const s of [-1, 1]) {
-        const m = add(g, new THREE.BoxGeometry(cw, ch, 0.012), (i + t) % 2 ? back : card, cx + s * 0.085, y + ch / 2 * Math.cos(lean) + 0.01, 0);
-        m.rotation.z = -s * lean;
-        m.rotation.y = 0.0;
+      const cx = (i - (n - 1) / 2) * pitch;
+      for (const s of [1, -1]) {                                             // s=1：手前のカード、s=-1：奥のカード
+        const m = add(g, new THREE.BoxGeometry(cw, ch, th), [edge, edge, edge, edge, s === 1 ? mkCard(k++) : backM, s === 1 ? backM : mkCard(k++)], cx, y + cardH / 2 + 0.004, s * dz);
+        m.rotation.x = -s * lean;
       }
     }
-    // 段の天板
-    if (n > 0) add(g, new THREE.BoxGeometry(width + 0.1, 0.012, cw), card, 0, y + ch * Math.cos(lean) + 0.02, 0);
+    const width = (n - 1) * pitch + cw + 0.04;                              // 段の上に1枚、横に寝かせる
+    const flat = add(g, new THREE.BoxGeometry(width, th, dz * 2 + 0.2), [edge, edge, mkCard(k++), backM, edge, edge], 0, y + cardH + 0.012, 0);
+    y += cardH + 0.018;
   }
   return castAll(g);
 }

@@ -316,7 +316,8 @@ function makeRound(itemIds) {
   };
 
   R.dispose = function () {
-    group.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material && o.material !== cloth.material) o.material.dispose(); });
+    // 材質は1つのことも配列（面ごとに違う材質。トランプのカード）のこともある。柄の画像（テクスチャ）は使い回すので捨てない
+    group.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material && o.material !== cloth.material) [].concat(o.material).forEach(m => m.dispose()); });
     cloth.material.dispose();
   };
   return R;
