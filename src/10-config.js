@@ -51,7 +51,7 @@ const CFG = {
     { from: 10, name: '宴会の達人' }, { from: 15, name: '神業の名人' }, { from: 20, name: '人間国宝' }, { from: 30, name: 'テーブルクロス王' },
   ],
   // X 共有：hashtag は「#」なし。url は公開したら入れる（空なら、いま開いているページの URL を使う）
-  share: { hashtag: 'テーブルクロス名人', url: '' },
+  share: { hashtag: 'テーブルクロス名人', url: 'https://fish-suika.github.io/tablecloth-pull/' },
   // 褒め言葉：from 連続以上で使う。連続数が増えるほど大きく褒める。near はギリギリ成功のとき
   praise: {
     ok: [
