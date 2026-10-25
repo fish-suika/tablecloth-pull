@@ -77,7 +77,72 @@ function buildGlass() {
   g.userData.radius = 0.3;
   return g;
 }
-const ITEM_BUILDERS = { glass: buildGlass };
+function std(color, o) { return new THREE.MeshStandardMaterial(Object.assign({ color, roughness: 0.6 }, o || {})); }
+function castAll(g) { g.traverse(o => { if (o.isMesh) o.castShadow = true; }); return g; }
+function add(g, geo, mat, x, y, z) { const m = new THREE.Mesh(geo, mat); m.position.set(x || 0, y || 0, z || 0); g.add(m); return m; }
+
+// 紙コップ：軽い。白に赤い縞
+function buildPaperCup() {
+  const g = new THREE.Group();
+  add(g, new THREE.CylinderGeometry(0.27, 0.19, 0.5, 20), std(0xffffff, { roughness: 0.9 }), 0, 0.25, 0);
+  add(g, new THREE.CylinderGeometry(0.262, 0.222, 0.14, 20), std(0xe8575a, { roughness: 0.9 }), 0, 0.26, 0);
+  add(g, new THREE.TorusGeometry(0.27, 0.025, 8, 20), std(0xf1ece0), 0, 0.5, 0).rotation.x = Math.PI / 2;
+  return castAll(g);
+}
+// お皿：平たい。ドーナツつき
+function buildPlate() {
+  const g = new THREE.Group();
+  add(g, new THREE.CylinderGeometry(0.5, 0.36, 0.07, 28), std(0xf6efe3, { roughness: 0.3 }), 0, 0.035, 0);
+  add(g, new THREE.CylinderGeometry(0.3, 0.3, 0.02, 24), std(0xdbe7f7, { roughness: 0.3 }), 0, 0.075, 0);
+  const d = add(g, new THREE.TorusGeometry(0.13, 0.065, 12, 20), std(0xf29bb7, { roughness: 0.5 }), 0, 0.15, 0);
+  d.rotation.x = Math.PI / 2;
+  return castAll(g);
+}
+// ろうそく：細くて背が高い。炎つき
+function buildCandle() {
+  const g = new THREE.Group();
+  add(g, new THREE.CylinderGeometry(0.24, 0.26, 0.06, 20), std(0xc9a54a, { metalness: 0.5, roughness: 0.35 }), 0, 0.03, 0);
+  add(g, new THREE.CylinderGeometry(0.075, 0.08, 0.95, 16), std(0xfff3d6, { roughness: 0.8 }), 0, 0.535, 0);
+  add(g, new THREE.SphereGeometry(0.075, 12, 10), new THREE.MeshBasicMaterial({ color: 0xffb43a }), 0, 1.12, 0).scale.set(0.8, 1.5, 0.8);
+  return castAll(g);
+}
+// 鉄鍋：重い。黒くて低い。取っ手つき
+function buildPot() {
+  const g = new THREE.Group();
+  add(g, new THREE.CylinderGeometry(0.42, 0.36, 0.5, 24), std(0x34353b, { metalness: 0.6, roughness: 0.4 }), 0, 0.25, 0);
+  add(g, new THREE.CylinderGeometry(0.44, 0.44, 0.05, 24), std(0x4a4b52, { metalness: 0.6, roughness: 0.4 }), 0, 0.52, 0);
+  add(g, new THREE.SphereGeometry(0.07, 10, 8), std(0x888b94, { metalness: 0.7 }), 0, 0.6, 0);
+  const h = add(g, new THREE.TorusGeometry(0.1, 0.035, 8, 14), std(0x34353b, { metalness: 0.6 }), 0.5, 0.42, 0); h.rotation.y = Math.PI / 2;
+  return castAll(g);
+}
+// ケーキ：3段。いちごが載る
+function buildCake() {
+  const g = new THREE.Group();
+  const cream = std(0xfff0f3, { roughness: 0.7 }), sponge = std(0xf3c98b, { roughness: 0.8 });
+  add(g, new THREE.CylinderGeometry(0.5, 0.5, 0.28, 28), sponge, 0, 0.14, 0);
+  add(g, new THREE.CylinderGeometry(0.51, 0.51, 0.1, 28), cream, 0, 0.3, 0);
+  add(g, new THREE.CylinderGeometry(0.38, 0.38, 0.26, 28), sponge, 0, 0.48, 0);
+  add(g, new THREE.CylinderGeometry(0.39, 0.39, 0.09, 28), cream, 0, 0.64, 0);
+  add(g, new THREE.CylinderGeometry(0.26, 0.26, 0.24, 28), sponge, 0, 0.78, 0);
+  add(g, new THREE.CylinderGeometry(0.27, 0.27, 0.08, 28), cream, 0, 0.93, 0);
+  add(g, new THREE.SphereGeometry(0.1, 12, 10), std(0xe03148, { roughness: 0.4 }), 0, 1.03, 0);
+  return castAll(g);
+}
+// シャンパンタワー：段になった皿を細い脚で重ねる
+function buildTower() {
+  const g = new THREE.Group();
+  const glassM = std(0xcfeeff, { transparent: true, opacity: 0.6, roughness: 0.1 });
+  add(g, new THREE.CylinderGeometry(0.22, 0.26, 0.04, 20), glassM, 0, 0.02, 0);
+  const tiers = [[0.5, 0.32], [0.36, 0.7], [0.22, 1.06]];
+  for (const [r, y] of tiers) {
+    add(g, new THREE.CylinderGeometry(0.035, 0.035, 0.34, 8), glassM, 0, y - 0.18, 0);
+    add(g, new THREE.CylinderGeometry(r, r * 0.55, 0.12, 22), glassM, 0, y, 0);
+    add(g, new THREE.CylinderGeometry(r * 0.88, r * 0.88, 0.04, 22), std(0xffd86b, { roughness: 0.3 }), 0, y + 0.04, 0);
+  }
+  add(g, new THREE.SphereGeometry(0.06, 10, 8), std(0xffd86b), 0, 1.2, 0);
+  return castAll(g);
+}
+const ITEM_BUILDERS = { glass: buildGlass, paperCup: buildPaperCup, plate: buildPlate, candle: buildCandle, pot: buildPot, cake: buildCake, tower: buildTower };
 
 function buildTable() {
   const g = new THREE.Group();
@@ -122,9 +187,11 @@ function makeRound(itemIds) {
   const shardsGroup = new THREE.Group();
   group.add(shardsGroup);
 
+  const n = itemIds.length, spread = n === 1 ? 0 : n === 2 ? 0.75 : 1.15;   // 物を横に並べる（2つ＝±0.75、3つ＝±1.15）
   const items = itemIds.map((id, k) => {
     const mesh = ITEM_BUILDERS[id]();
-    const it = { id, mesh, x: 0, y: TOP, z: ITEM_Z0, rx: 0, rz: 0, vx: 0, vy: 0, vz: 0, wx: 0, wz: 0, mode: 'rest', wob: 0, wobAmp: 0, t: 0 };
+    const x = n === 1 ? 0 : -spread + 2 * spread * k / (n - 1);
+    const it = { id, mesh, x, y: TOP, z: ITEM_Z0 + (n > 1 && k % 2 ? -0.25 : 0), rx: 0, rz: 0, vx: 0, vy: 0, vz: 0, wx: 0, wz: 0, mode: 'rest', wob: 0, wobAmp: 0, t: 0 };
     group.add(mesh);
     return it;
   });
@@ -208,17 +275,19 @@ function makeRound(itemIds) {
   R.pull = function (speed, verdict) {
     R.speed = speed; R.verdict = verdict; R.phase = 'pulling'; R.pt = 0;
     R.dur = Math.min(CFG.fx.durMax, Math.max(CFG.fx.durMin, CFG.fx.durK / Math.max(speed, 0.5)));
-    for (const it of items) {
-      if (verdict.result === 'ok') {
-        it.mode = 'hop'; it.vy = verdict.near ? 1.2 : 2.4; it.wobAmp = verdict.near ? 0.42 : 0.14; it.wob = 0;
-      } else if (verdict.result === 'slow') {
+    // 物ごとの判定（verdict.per）で動きが決まる。全部成功ならギリギリの物ほど大きく揺れ、一部だけ外れたら外れた物だけ失敗する
+    items.forEach((it, k) => {
+      const v = verdict.per[k];
+      if (v.result === 'ok') {
+        it.mode = 'hop'; it.vy = v.near ? 1.2 : 2.4; it.wobAmp = v.near ? 0.42 : 0.14; it.wob = 0;
+      } else if (v.result === 'slow') {
         it.mode = 'drag';
       } else {
         it.mode = 'launch';
-        it.vy = 8.5 + Math.min(4, verdict.off) * 0.6; it.vz = 0.5 + Math.random() * 1.2; it.vx = (Math.random() - .5) * 1.2;
+        it.vy = 8.5 + Math.min(4, v.off) * 0.6; it.vz = 0.5 + Math.random() * 1.2; it.vx = (Math.random() - .5) * 1.2;
         it.wx = 5 + Math.random() * 3; it.wz = (Math.random() - .5) * 8;
       }
-    }
+    });
   };
 
   R.update = function (dt) {

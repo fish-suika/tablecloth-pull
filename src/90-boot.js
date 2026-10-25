@@ -32,8 +32,8 @@
   function saveBest() { try { localStorage.setItem(KEY, String(best)); } catch (e) { } }
 
   // ---- 状態 ----
-  let state = 'title', streak = 0, round = null, outgoing = null, range = null, def = null;
-  let enterT = 0, resT = 0, popped = false, advanced = false, failAt = 0, drag = null;
+  let state = 'title', streak = 0, round = null, outgoing = null, range = null;
+  let enterT = 0, resT = 0, popped = false, advanced = false, failAt = 0, drag = null, nextIds = null;
   let showZone = CFG.showZoneDefault;
 
   const hud = $('hud'), meter = $('meter'), mZone = $('meterZone'), mMark = $('meterMark'), mVal = $('meterVal'), hint = $('hint');
@@ -43,6 +43,7 @@
     const d = document.createElement('div'); d.className = 'pop ' + cls; d.textContent = text;
     $('pops').appendChild(d); setTimeout(() => d.remove(), 1250);
   }
+  function showNames(ids) { $('names').textContent = ids.map(id => CFG.items[id].name).join('・'); }
   function setZoneView() {
     $('zoneBtn').classList.toggle('off', !showZone);
     if (!range || range.empty) { mZone.style.display = 'none'; return; }
@@ -59,10 +60,12 @@
   $('zoneBtn').addEventListener('click', e => { e.stopPropagation(); showZone = !showZone; setZoneView(); });
 
   function spawnRound() {
-    const ids = [CFG.firstItem];
-    def = CFG.items[ids[0]];
-    range = combineRanges(ids.map(id => itemRange(CFG.items[id], streak, CFG)));
+    const ids = nextIds || pickTable(streak, Math.random, CFG);
+    nextIds = null;
+    range = tableRange(ids, streak, CFG);
     round = makeRound(ids);
+    round.ids = ids;
+    showNames(ids);
     round.group.position.x = CFG.world.slideX;
     scene.add(round.group);
     state = 'enter'; enterT = 0; popped = false; advanced = false;
@@ -94,7 +97,7 @@
 
   // 引いた結果をここで決める（指を離した瞬間）
   function commitPull(speed) {
-    const verdict = judge(speed, range, CFG);
+    const verdict = judgeTable(speed, round.ids, streak, CFG);
     round.pull(speed, verdict);
     state = 'resolve'; resT = 0; popped = false; advanced = false; failAt = 0;
     round.verdict = verdict;
@@ -149,8 +152,9 @@
       if (outgoing.group.position.x < -CFG.world.slideX) { scene.remove(outgoing.group); outgoing.dispose(); outgoing = null; }
     }
     if (round) {
-      round.update(dt);
-      if (state === 'enter') {
+      const slowNear = state === "resolve" && round.verdict && round.verdict.result === "ok" && round.verdict.near && resT < CFG.fx.slowTime;
+      round.update(slowNear ? dt * CFG.fx.slowScale : dt);
+      if (state === "enter") {
         enterT += dt;
         const k = Math.min(1, enterT / CFG.fx.enter);
         round.group.position.x = CFG.world.slideX * (1 - ease.out(k));
@@ -159,11 +163,11 @@
         resT += dt;
         const v = round.verdict;
         if (v.result === 'ok') {
-          if (!popped && resT > 0.28) {
+          if (!popped && resT > (v.near ? CFG.fx.nearPopAt : 0.28)) {
             popped = true;
             if (v.near) pop('ギリギリ！', 'great'); else pop('お見事！', 'good');
           }
-          if (!advanced && resT > CFG.fx.okHold) {
+          if (!advanced && resT > (v.near ? CFG.fx.nearHold : CFG.fx.okHold)) {
             advanced = true; streak++; refreshHud();
             const sb = $('streakBox'); sb.classList.remove('bump'); void sb.offsetWidth; sb.classList.add('bump');
             outgoing = round; spawnRound();
@@ -183,6 +187,7 @@
 
   // 検証用：スワイプなしで、指定の速さで引いたことにする
   window.__tc = {
+    spawn: ids => { if (round) { scene.remove(round.group); round.dispose(); } nextIds = ids; spawnRound(); },
     pull: s => { if (state === 'aim') commitPull(s); return state; },
     state: () => ({ state, streak, best, range, shattered: round && round.shattered }),
   };

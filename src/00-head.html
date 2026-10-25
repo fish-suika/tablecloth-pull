@@ -44,6 +44,7 @@
   #meterMark.bad{background:#ff6b6b;box-shadow:0 0 calc(var(--u)*2) #ff6b6b}
   #meterLab{display:flex;justify-content:space-between;margin-top:calc(var(--u)*1.2);font-size:calc(var(--u)*3);font-weight:900;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.7)}
 
+  #names{position:absolute;left:0;right:0;top:calc(env(safe-area-inset-top) + var(--u)*31);z-index:5;pointer-events:none;text-align:center;color:#fff;font-size:calc(var(--u)*3.6);font-weight:900;text-shadow:0 1px 4px rgba(0,0,0,.8);white-space:nowrap}
   #pops{position:absolute;left:50%;top:44%;z-index:6;pointer-events:none}
   .pop{position:absolute;left:0;transform:translateX(-50%);font-size:calc(var(--u)*11);font-weight:900;white-space:nowrap;-webkit-text-stroke:calc(var(--u)*.8) #fff;paint-order:stroke fill;animation:floatUp 1.2s ease-out forwards}
   .pop.good{color:#2b8a3e} .pop.great{color:#e8890c;font-size:calc(var(--u)*13)} .pop.bad{color:#e03131}
@@ -78,6 +79,7 @@
     <div id="meterBar"><div id="meterZone"></div><div id="meterMark"></div></div>
     <div id="meterLab"><span>遅い</span><span id="meterVal"></span><span>速い</span></div>
   </div>
+  <div id="names"></div>
   <div id="pops"></div>
   <div id="hint"><span class="arrow">▼</span><span class="ph">下へ</span><span class="ph">ちょうどいい速さで</span><span class="ph">スワイプ</span></div>
 

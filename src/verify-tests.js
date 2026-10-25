@@ -51,6 +51,33 @@ check('広げた最初の幅もメーターの中に収まる', Object.values(CF
 // ---- メーター ----
 check('メーター位置は0〜1に収まる', meterPos(-1, CFG) === 0 && meterPos(100, CFG) === 1 && near(meterPos(CFG.speedMax / 2, CFG), 0.5));
 
+// ---- Phase 2：載る物の選び方・テーブルの判定 ----
+function seeded(seed) { let s = seed >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
+const tiersOk = (lo, hi, test) => { for (let st = lo; st < hi; st++) for (let seed = 1; seed <= 200; seed++) { const ids = pickTable(st, seeded(seed * 7919 + st), CFG); if (!test(ids, st)) return false; } return true; };
+check('最初（0〜2連続）は1つだけ載る', tiersOk(0, 3, ids => ids.length === 1));
+check('4〜7（3〜6連続）は2〜3個載る', tiersOk(3, 7, ids => ids.length >= 2 && ids.length <= 3));
+check('8〜12（7〜11連続）はケーキかタワーが必ず載る', tiersOk(7, 12, ids => ids.includes('cake') || ids.includes('tower')));
+check('同じ物が1つのテーブルに重複して載らない', tiersOk(0, 30, ids => new Set(ids).size === ids.length));
+check('どのテーブルも幅の重なりがあり、tier の最小幅以上（理不尽な組み合わせが出ない）', tiersOk(0, 30, (ids, st) => {
+  const r = tableRange(ids, 99, CFG), t = tierOf(st, CFG);   // 99＝広げない幅
+  return !r.empty && (r.hi - r.lo >= t.minW - 1e-9 || ids.length === 1);
+}));
+check('載っている物は設定にある物だけ', tiersOk(0, 30, ids => ids.every(id => CFG.items[id])));
+check('同じ乱数なら同じ組み合わせ（検証が再現できる）', JSON.stringify(pickTable(5, seeded(42), CFG)) === JSON.stringify(pickTable(5, seeded(42), CFG)));
+check('7種類すべてがどこかで出る', (() => { const seen = new Set(); for (let st = 0; st < 40; st++) for (let s = 1; s < 60; s++) pickTable(st, seeded(s * 31 + st), CFG).forEach(i => seen.add(i)); return Object.keys(CFG.items).every(k => seen.has(k)); })());
+check('軽い紙コップは速すぎるとダメ・重い鉄鍋は遅いとダメ（性格の差）', CFG.items.paperCup.hi < CFG.items.glass.hi && CFG.items.pot.lo > CFG.items.glass.lo);
+check('紙コップと鉄鍋は同時に載らない（幅が重ならない）', combineRanges([CFG.items.paperCup, CFG.items.pot]).empty);
+const jt = (sp, ids, no) => judgeTable(sp, ids, no === undefined ? 99 : no, CFG);
+check('テーブル判定：重なりの中なら成功', jt(3.0, ['glass', 'plate']).result === 'ok');
+check('テーブル判定：重い物と一緒だと、グラス単独で成功の速さでも遅くて失敗', jt(3.0, ['glass', 'pot']).result === 'slow' && judge(3.0, CFG.items.glass, CFG).result === 'ok');
+check('テーブル判定：軽い物と一緒だと速すぎて失敗', jt(4.5, ['plate', 'paperCup']).result === 'fast');
+check('テーブル判定：物ごとの結果が返る（外れた物だけ失敗）', (() => { const j = jt(3.0, ['glass', 'pot']); return j.per[0].result === 'ok' && j.per[1].result === 'slow'; })());
+check('テーブル判定：全員成功なら全員 ok', jt(4.2, ['glass', 'plate', 'pot']).per.every(p => p.result === 'ok'));
+check('テーブル判定：どれかがギリギリなら near', jt(2.25, ['paperCup', 'glass']).near && !jt(3.0, ['plate']).near);
+check('失敗のときは near にならない', !jt(0.5, ['glass']).near);
+check('最初の数テーブルは広い幅で判定される', jt(1.8, ['glass'], 0).result === 'ok' && jt(1.8, ['glass'], 5).result === 'slow');
+check('tableRange は judgeTable の range と同じ', (() => { const a = tableRange(['glass', 'cake'], 2, CFG), b = jt(3, ['glass', 'cake'], 2).range; return a.lo === b.lo && a.hi === b.hi; })());
+
 const sumEl = document.getElementById('sum');
 sumEl.textContent = nNg === 0 ? ('全 ' + nOk + ' 件 PASS') : (nNg + ' 件 FAIL / ' + (nOk + nNg) + ' 件');
 sumEl.style.color = nNg === 0 ? '#6bd07a' : '#ff6b6b';
