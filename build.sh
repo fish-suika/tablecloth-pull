@@ -7,6 +7,7 @@ cat src/00-head.html \
     src/10-config.js \
     src/20-logic.js \
     src/30-scene.js \
+    src/22-sound.js \
     src/90-boot.js \
     src/99-tail.html > tablecloth-pull.html
 cp tablecloth-pull.html index.html   # GitHub Pages はルートの index.html を配信する
@@ -16,6 +17,8 @@ cat src/verify-head.html \
     src/10-config.js \
     src/20-logic.js \
     src/verify-tests.js \
+    src/verify-tests-p3.js \
+    src/verify-sum.js \
     src/99-tail.html > verify.html
 
 echo "built tablecloth-pull.html + index.html ($(wc -c < tablecloth-pull.html) bytes)"

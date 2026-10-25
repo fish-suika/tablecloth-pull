@@ -50,6 +50,16 @@
   .pop.good{color:#2b8a3e} .pop.great{color:#e8890c;font-size:calc(var(--u)*13)} .pop.bad{color:#e03131}
   @keyframes floatUp{0%{opacity:0;margin-top:calc(var(--u)*3);scale:.6}15%{opacity:1;scale:1.15}30%{scale:1}100%{opacity:0;margin-top:calc(var(--u)*-16)}}
 
+  .pop.epic{color:#d6336c;font-size:calc(var(--u)*15)}
+  .pop.mile{top:calc(var(--u)*-17);color:#7048e8;font-size:calc(var(--u)*13);animation-duration:1.5s}
+  #streakBox.t1{background:#fff3bf;box-shadow:0 2px 0 rgba(0,0,0,.2),0 0 calc(var(--u)*2.5) #ffe066}
+  #streakBox.t2{background:#ffd8a8;box-shadow:0 2px 0 rgba(0,0,0,.2),0 0 calc(var(--u)*3.5) #ff922b}
+  #streakBox.t3{background:linear-gradient(135deg,#ffd43b,#ff8787,#da77f2);box-shadow:0 2px 0 rgba(0,0,0,.2),0 0 calc(var(--u)*5) #f783ac;animation:glowHue 1.2s linear infinite}
+  #streakBox.t3.bump{animation:bump .3s ease-out,glowHue 1.2s linear infinite}
+  @keyframes glowHue{0%{filter:hue-rotate(0)}100%{filter:hue-rotate(40deg)}}
+  #confetti{position:absolute;inset:0;z-index:7;pointer-events:none;overflow:hidden}
+  .cf{position:absolute;top:-4%;width:calc(var(--u)*2);height:calc(var(--u)*3.2);border-radius:calc(var(--u)*.3);animation:cfFall linear forwards}
+  @keyframes cfFall{0%{transform:translate3d(0,0,0) rotate(0)}100%{transform:translate3d(var(--dx),calc(var(--u)*190),0) rotate(var(--rot))}}
   #hint{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom) + var(--u)*8);z-index:5;pointer-events:none;text-align:center;color:#fff;font-size:calc(var(--u)*4.4);font-weight:900;text-shadow:0 2px 6px rgba(0,0,0,.7);opacity:0;transition:opacity .2s}
   #hint.on{opacity:1}
   #hint .arrow{display:block;font-size:calc(var(--u)*9);animation:nudge 1s ease-in-out infinite}
@@ -72,6 +82,7 @@
     <div class="row">
       <div class="chip" id="streakBox"><small>連続</small><b id="streak">0</b></div>
       <div class="chip" id="bestBox"><small>自己ベスト</small><b id="best">0</b></div>
+      <button class="ibtn" id="soundBtn" title="音の入り切り">♪</button>
       <button class="ibtn" id="zoneBtn" title="成功の幅を先に見せる／隠す">幅</button>
     </div>
   </div>
@@ -80,6 +91,7 @@
     <div id="meterLab"><span>遅い</span><span id="meterVal"></span><span>速い</span></div>
   </div>
   <div id="names"></div>
+  <div id="confetti"></div>
   <div id="pops"></div>
   <div id="hint"><span class="arrow">▼</span><span class="ph">下へ</span><span class="ph">ちょうどいい速さで</span><span class="ph">スワイプ</span></div>
 
@@ -131,6 +143,28 @@ const CFG = {
     { upTo: 12, count: [1, 3], pool: ['cake', 'tower', 'candle', 'glass', 'plate', 'paperCup', 'pot'], must: ['cake', 'tower'], minW: 0.8 },
     { upTo: Infinity, count: [2, 3], pool: ['paperCup', 'plate', 'glass', 'candle', 'pot', 'cake', 'tower'], minW: 0.7 },
   ],
+  // 褒め言葉：from 連続以上で使う。連続数が増えるほど大きく褒める。near はギリギリ成功のとき
+  praise: {
+    ok: [
+      { from: 1,  words: ['お見事！', 'ナイス！', 'いい引き！'] },
+      { from: 4,  words: ['すごい！', 'うまい！', 'さすが！'] },
+      { from: 8,  words: ['天才！', '名人！', 'プロの技！'] },
+      { from: 13, words: ['神業！', '伝説！', '人間国宝！'] },
+      { from: 20, words: ['人間じゃない！', 'ありえない！', '世界一！'] },
+    ],
+    near: ['ギリギリ！', 'あぶなっ！', '神業！'],
+    slow: ['ずるずる〜！', '遅すぎ！', '引きずった！'],
+    fast: ['ロケット発射！', '速すぎ！', '飛んでった！'],
+    milestoneEvery: 5,      // この連続数ごとに「N連続！」を大きく出す
+    confettiMax: 80,        // 紙吹雪の最大数（3連続から出る）
+  },
+  // 割れたときの破片の色（[おもな色, 差し色]）
+  shard: {
+    paperCup: [0xffffff, 0xe8575a], plate: [0xf6efe3, 0xf29bb7], glass: [0xcfeeff, 0xff5d73], candle: [0xfff3d6, 0xffb43a],
+    pot: [0x34353b, 0x888b94], cake: [0xfff0f3, 0xe03148], tower: [0xcfeeff, 0xffd86b],
+  },
+  // 画面の揺れ（カメラ）：pull＝引いた瞬間（速さに比例）、shatter＝割れた瞬間、milestone＝節目
+  shake: { pull: 0.012, pullMax: 0.1, shatter: 0.16, milestone: 0.08, decay: 5 },
   // 演出の時間（秒）
   // 引く動きの長さ＝ durK ÷ 速さ（秒）を durMin〜durMax に収める。遅く引くと布もゆっくり動く
   // ギリギリ成功のスロー：slowScale 倍の速さで slowTime 秒（実時間）。そのあと nearPopAt 秒で褒め、nearHold 秒で次へ
@@ -138,7 +172,7 @@ const CFG = {
         slowScale: 0.3, slowTime: 1.0, nearPopAt: 0.95, nearHold: 1.5 },
   world: { tableTop: 1.0, tableW: 3.4, tableD: 2.0, drape: 1.0, clothW: 3.9, slideX: 9 },
   // カメラ：横の画角を固定して、斜め上から見下ろす
-  cam: { hfov: 36, pos: [0, 5.0, 6.6], look: [0, 0.7, 0.3] },
+  cam: { hfov: 36, pos: [0, 5.0, 6.6], look: [0, 1.5, 0.3] },
 };
 // ===== 判定ロジック（three.js を使わない。verify.html で検証する） =====
 
@@ -220,6 +254,28 @@ function judgeTable(speed, ids, tableNo, cfg) {
 
 // そのテーブル全体の成功の幅
 function tableRange(ids, tableNo, cfg) { return combineRanges(ids.map(id => itemRange(cfg.items[id], tableNo, cfg))); }
+
+// ---- 演出の選び方（褒め言葉・紙吹雪・節目） ----
+// count＝この成功で何連続になるか。rng は 0〜1 の乱数。cls は見た目の大きさ（good → great → epic）
+function praiseFor(count, near, rng, cfg) {
+  const pick = a => a[Math.floor(rng() * a.length) % a.length];
+  let tier = cfg.praise.ok[0];
+  for (const t of cfg.praise.ok) if (count >= t.from) tier = t;
+  const cls = count >= cfg.praise.ok[3].from ? 'epic' : (near || count >= cfg.praise.ok[2].from ? 'great' : 'good');
+  return { text: near ? pick(cfg.praise.near) : pick(tier.words), cls };
+}
+function failWord(result, rng, cfg) { const a = cfg.praise[result]; return a[Math.floor(rng() * a.length) % a.length]; }
+function isMilestone(count, cfg) { return count > 0 && count % cfg.praise.milestoneEvery === 0; }
+// 紙吹雪の数：3連続から。連続数に比例、節目は倍
+function confettiCount(count, cfg) {
+  if (count < 3) return 0;
+  const n = Math.min(cfg.praise.confettiMax, 8 + count * 3);
+  return isMilestone(count, cfg) ? Math.min(cfg.praise.confettiMax * 1.5, n * 2) : n;
+}
+// 連続数に応じた連続数チップの光り方（0〜3）
+function glowTier(count) { return count >= 20 ? 3 : count >= 12 ? 2 : count >= 5 ? 1 : 0; }
+// 引いた瞬間の画面の揺れの強さ（速いほど強い）
+function pullShake(speed, cfg) { return Math.min(cfg.shake.pullMax, speed * cfg.shake.pull); }
 // ===== 3D の場面：テーブル・クロス・物・割れる破片 =====
 // 物理エンジンは使わない。結果は判定ロジックで先に決まっていて、ここはその結果に合う動きを再生するだけ。
 // クロスは「経路（テーブルの上→手前の垂れ→床）」に沿って布の点が滑っていく作り。
@@ -272,7 +328,7 @@ function clothTexture() {
 }
 
 // 布の経路上の位置：s は経路に沿った長さ（0＝テーブルの奥の縁）
-function pathAt(s, progress) {
+function pathAt(s, progress, whip) {
   const D = CFG.world.tableD, H = CFG.world.drape;
   if (s <= D) return { y: TOP + 0.012, z: -D / 2 + s };
   if (s <= D + H) {
@@ -280,7 +336,7 @@ function pathAt(s, progress) {
     return { y: TOP - (s - D) + 0.012 * (1 - k), z: EDGE + 0.14 * Math.sin(Math.PI * Math.min(1, k * 1.15)) + 0.012 };
   }
   const f = s - D - H;
-  const y = 0.02 + Math.max(0, 0.5 * progress * Math.sin(f * 1.9)) * Math.min(1, f);
+  const y = 0.02 + Math.max(0, 0.5 * whip * progress * Math.sin(f * 1.9)) * Math.min(1, f);
   return { y, z: EDGE + 0.012 + f };
 }
 
@@ -423,7 +479,7 @@ function makeRound(itemIds) {
     phase: 'idle',        // idle → pulling → done
     offset: 0, pt: 0, dur: 1, verdict: null, speed: 0,
     shards: [], shattered: false, settled: false, onShatter: null, onSettle: null,
-    elapsed: 0,
+    elapsed: 0, whip: 1,
   };
 
   function writeCloth() {
@@ -432,7 +488,7 @@ function makeRound(itemIds) {
     const hw = CFG.world.clothW / 2;
     for (let j = 0; j <= CLOTH_NM; j++) {
       const m = j / CLOTH_NM * CLOTH_LEN;
-      const p = pathAt(m + R.offset, prog);
+      const p = pathAt(m + R.offset, prog, R.whip);
       for (let i = 0; i <= CLOTH_NX; i++) {
         const k = (j * (CLOTH_NX + 1) + i) * 3;
         const u = i / CLOTH_NX * 2 - 1;
@@ -455,11 +511,11 @@ function makeRound(itemIds) {
 
   function shatter(it) {
     it.mode = 'gone'; it.mesh.visible = false;
-    const n = 18;
+    const n = 26, sc = CFG.shard[it.id] || [0xcfeeff, 0xff5d73];
     for (let i = 0; i < n; i++) {
       const sz = 0.05 + Math.random() * 0.08;
       const m = new THREE.Mesh(new THREE.BoxGeometry(sz, sz * 0.5, sz * 1.4),
-        new THREE.MeshStandardMaterial({ color: i % 4 === 0 ? 0xff5d73 : 0xcfeeff, transparent: true, opacity: 0.8 }));
+        new THREE.MeshStandardMaterial({ color: i % 4 === 0 ? sc[1] : sc[0], transparent: true, opacity: 0.9 }));
       m.position.set(it.x, Math.max(it.y, 0.05) + 0.2, it.z);
       const a = Math.random() * Math.PI * 2, sp = 1 + Math.random() * 2.6;
       shardsGroup.add(m);
@@ -495,7 +551,7 @@ function makeRound(itemIds) {
   }
 
   R.pull = function (speed, verdict) {
-    R.speed = speed; R.verdict = verdict; R.phase = 'pulling'; R.pt = 0;
+    R.speed = speed; R.verdict = verdict; R.whip = Math.min(1.6, 0.6 + 0.14 * speed); R.phase = 'pulling'; R.pt = 0;
     R.dur = Math.min(CFG.fx.durMax, Math.max(CFG.fx.durMin, CFG.fx.durK / Math.max(speed, 0.5)));
     // 物ごとの判定（verdict.per）で動きが決まる。全部成功ならギリギリの物ほど大きく揺れ、一部だけ外れたら外れた物だけ失敗する
     items.forEach((it, k) => {
@@ -543,6 +599,88 @@ function makeRound(itemIds) {
   };
   return R;
 }
+// ===== 効果音（Web Audio で合成。音源ファイルなし） =====
+// 使えない環境・まだ操作がない状態では何もしない（遊びは止まらない）
+const SFX = (function () {
+  let ctx = null, master = null, noiseBuf = null, muted = false;
+  try { muted = localStorage.getItem('tablecloth-pull-mute') === '1'; } catch (e) { }
+
+  function unlock() {                         // 最初の操作のときに呼ぶ（iPhone などは操作の中でしか音を出せない）
+    try {
+      if (!ctx) {
+        ctx = new (window.AudioContext || window.webkitAudioContext)();
+        master = ctx.createGain(); master.gain.value = muted ? 0 : 0.8; master.connect(ctx.destination);
+        noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 1.5, ctx.sampleRate);
+        const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      }
+      if (ctx.state === 'suspended') ctx.resume();
+    } catch (e) { ctx = null; }
+  }
+  function setMuted(m) {
+    muted = m; try { localStorage.setItem('tablecloth-pull-mute', m ? '1' : '0'); } catch (e) { }
+    if (master) master.gain.value = m ? 0 : 0.8;
+  }
+  const ok = () => ctx && ctx.state === 'running' && !muted;
+
+  // 雑音：filter の周波数を f0→f1 に動かし、vol で鳴らして dur 秒で消える
+  function noise(type, f0, f1, dur, vol, delay, q) {
+    if (!ok()) return;
+    const t = ctx.currentTime + (delay || 0);
+    const s = ctx.createBufferSource(); s.buffer = noiseBuf; s.loop = true;
+    const f = ctx.createBiquadFilter(); f.type = type; f.Q.value = q || 1;
+    f.frequency.setValueAtTime(f0, t); f.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + Math.min(0.02, dur / 3)); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    s.connect(f); f.connect(g); g.connect(master);
+    s.start(t, Math.random()); s.stop(t + dur + 0.05);
+  }
+  // 音程：f0→f1
+  function tone(type, f0, f1, dur, vol, delay) {
+    if (!ok()) return;
+    const t = ctx.currentTime + (delay || 0);
+    const o = ctx.createOscillator(); o.type = type;
+    o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + 0.015); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05);
+  }
+
+  // 歓声：連続数が増えるほど長く・大きく・拍手が増える
+  function cheer(level) {
+    const l = Math.min(10, level);
+    noise('bandpass', 900, 1700, 0.5 + l * 0.07, 0.10 + l * 0.02, 0, 0.7);
+    noise('bandpass', 1800, 2600, 0.4 + l * 0.05, 0.05 + l * 0.01, 0.05, 0.9);
+    for (let i = 0; i < 3 + l * 2; i++) noise('highpass', 2500, 4000, 0.05, 0.16, 0.1 + Math.random() * (0.35 + l * 0.04), 0.7);   // 拍手
+  }
+
+  return {
+    unlock, setMuted, isMuted: () => muted,
+    // 引いた瞬間：風切り音＋最後にパチンという音
+    whip(speed) {
+      const d = Math.max(0.12, 0.34 - speed * 0.03);
+      noise('bandpass', 700, 5200, d, 0.5, 0, 1.2);
+      noise('highpass', 5000, 7000, 0.06, 0.4, d * 0.8);
+    },
+    // 成功：連続数に応じて上がるファンファーレ＋歓声
+    success(count) {
+      const base = 523.25 * Math.pow(2, Math.min(count, 12) / 24);
+      [1, 1.25, 1.5, 2].forEach((m, i) => tone('triangle', base * m, base * m * 1.01, 0.22, 0.22, i * 0.07));
+      cheer(count);
+    },
+    near() { tone('sine', 880, 1320, 0.25, 0.25); tone('triangle', 1318, 1760, 0.3, 0.2, 0.1); cheer(8); },
+    slowmo() { tone('sine', 220, 55, 0.7, 0.35); },                      // ギリギリのスロー：低くうなる
+    drag() { noise('lowpass', 500, 220, 0.6, 0.45, 0, 2); },             // 引きずられる
+    launch() { tone('sine', 280, 1400, 0.45, 0.22); noise('bandpass', 1200, 3000, 0.4, 0.15); },   // ロケットのように飛ぶ
+    shatter(kind) {
+      for (let i = 0; i < 10; i++) noise('highpass', 3000 + Math.random() * 2500, 6000, 0.07, 0.3, Math.random() * 0.22, 0.8);
+      if (kind === 'pot') { tone('square', 190, 90, 0.35, 0.28); noise('lowpass', 900, 200, 0.3, 0.4); }          // 鉄鍋はガラスでなくガシャン
+      else if (kind === 'cake') { noise('lowpass', 700, 150, 0.25, 0.4); tone('sine', 180, 60, 0.25, 0.3); }      // ケーキはぐしゃ
+      else { for (let i = 0; i < 4; i++) tone('sine', 2200 + Math.random() * 2800, 2000, 0.12, 0.12, Math.random() * 0.2); }
+    },
+    fail() { [392, 330, 262, 196].forEach((f, i) => tone('triangle', f, f * 0.96, 0.28, 0.22, 0.25 + i * 0.16)); },   // しょんぼりした下降
+    milestone() { [523, 659, 784, 1047, 1319].forEach((f, i) => tone('square', f, f, 0.12, 0.12, i * 0.06)); cheer(10); },
+  };
+})();
 // ===== 起動・メインループ・入力・ゲームの流れ =====
 // state：title → enter（テーブルが滑り込む）→ aim（スワイプ待ち）→ resolve（結果の演出）→ enter … / over
 (function boot() {
@@ -556,6 +694,8 @@ function makeRound(itemIds) {
   buildWorld(scene);
   const camera = new THREE.PerspectiveCamera(40, 9 / 16, 0.1, 80);
   const C = CFG.cam;
+  let shakeAmp = 0;
+  function shake(a) { shakeAmp = Math.max(shakeAmp, a); }
 
   function fit() {
     const w = view.clientWidth, h = view.clientHeight;
@@ -583,10 +723,23 @@ function makeRound(itemIds) {
 
   const hud = $('hud'), meter = $('meter'), mZone = $('meterZone'), mMark = $('meterMark'), mVal = $('meterVal'), hint = $('hint');
 
-  function refreshHud() { $('streak').textContent = streak; $('best').textContent = best; $('titleBest').textContent = best; }
+  function refreshHud() {
+    $('streak').textContent = streak; $('best').textContent = best; $('titleBest').textContent = best;
+    $('streakBox').className = 'chip t' + glowTier(streak);
+  }
   function pop(text, cls) {
     const d = document.createElement('div'); d.className = 'pop ' + cls; d.textContent = text;
     $('pops').appendChild(d); setTimeout(() => d.remove(), 1250);
+  }
+  function confetti(n) {
+    const box = $('confetti'), cols = ['#ff6b6b', '#ffd43b', '#51cf66', '#339af0', '#da77f2', '#ff922b'];
+    for (let i = 0; i < n; i++) {
+      const d = document.createElement('div'); d.className = 'cf';
+      d.style.left = (Math.random() * 100) + '%'; d.style.background = cols[i % cols.length];
+      d.style.setProperty('--dx', ((Math.random() - 0.5) * 30) + 'vw'); d.style.setProperty('--rot', (360 + Math.random() * 720) + 'deg');
+      d.style.animationDuration = (1.4 + Math.random() * 1.2) + 's'; d.style.animationDelay = (Math.random() * 0.25) + 's';
+      box.appendChild(d); setTimeout(() => d.remove(), 3200);
+    }
   }
   function showNames(ids) { $('names').textContent = ids.map(id => CFG.items[id].name).join('・'); }
   function setZoneView() {
@@ -602,6 +755,9 @@ function makeRound(itemIds) {
     mMark.classList.toggle('bad', !!bad);
     mVal.textContent = '速さ ' + speed.toFixed(1);
   }
+  $('soundBtn').classList.toggle('off', SFX.isMuted());
+  $('soundBtn').addEventListener('click', e => { e.stopPropagation(); SFX.unlock(); SFX.setMuted(!SFX.isMuted()); $('soundBtn').classList.toggle('off', SFX.isMuted()); });
+  addEventListener('pointerdown', () => SFX.unlock(), { capture: true });
   $('zoneBtn').addEventListener('click', e => { e.stopPropagation(); showZone = !showZone; setZoneView(); });
 
   function spawnRound() {
@@ -610,6 +766,7 @@ function makeRound(itemIds) {
     range = tableRange(ids, streak, CFG);
     round = makeRound(ids);
     round.ids = ids;
+    round.onShatter = it => { SFX.shatter(it.id); shake(CFG.shake.shatter); };
     showNames(ids);
     round.group.position.x = CFG.world.slideX;
     scene.add(round.group);
@@ -631,6 +788,7 @@ function makeRound(itemIds) {
 
   function gameOver(kind) {
     state = 'over';
+    SFX.fail();
     if (streak > best) { best = streak; saveBest(); }
     refreshHud();
     $('overTitle').textContent = kind === 'slow' ? '引きずって落ちた…' : '跳ねて割れた…';
@@ -644,6 +802,9 @@ function makeRound(itemIds) {
   function commitPull(speed) {
     const verdict = judgeTable(speed, round.ids, streak, CFG);
     round.pull(speed, verdict);
+    SFX.whip(speed); shake(pullShake(speed, CFG));
+    if (verdict.result === 'slow') setTimeout(SFX.drag, 120); else if (verdict.result === 'fast') setTimeout(SFX.launch, 60);
+    else if (verdict.near) setTimeout(SFX.slowmo, 150);
     state = 'resolve'; resT = 0; popped = false; advanced = false; failAt = 0;
     round.verdict = verdict;
     setMark(speed, verdict.result !== 'ok');
@@ -710,20 +871,30 @@ function makeRound(itemIds) {
         if (v.result === 'ok') {
           if (!popped && resT > (v.near ? CFG.fx.nearPopAt : 0.28)) {
             popped = true;
-            if (v.near) pop('ギリギリ！', 'great'); else pop('お見事！', 'good');
+            streak++; refreshHud();
+            const sb = $('streakBox'); sb.classList.remove('bump'); void sb.offsetWidth; sb.classList.add('bump');
+            const pr = praiseFor(streak, v.near, Math.random, CFG);
+            pop(pr.text, pr.cls);
+            if (v.near) SFX.near(); else SFX.success(streak);
+            confetti(confettiCount(streak, CFG));
+            if (isMilestone(streak, CFG)) { pop(streak + '連続！', 'mile'); SFX.milestone(); shake(CFG.shake.milestone); }
           }
           if (!advanced && resT > (v.near ? CFG.fx.nearHold : CFG.fx.okHold)) {
-            advanced = true; streak++; refreshHud();
-            const sb = $('streakBox'); sb.classList.remove('bump'); void sb.offsetWidth; sb.classList.add('bump');
+            advanced = true;
             outgoing = round; spawnRound();
           }
         } else {
-          if (!popped && resT > 0.12) { popped = true; pop(v.result === 'slow' ? '遅すぎ！' : '速すぎ！', 'bad'); }
+          if (!popped && resT > 0.12) { popped = true; pop(failWord(v.result, Math.random, CFG), 'bad'); }
           if (round.shattered && !failAt) failAt = resT;
           if ((failAt && resT > failAt + CFG.fx.failHold) || resT > 3.5) gameOver(v.result);
         }
       }
     }
+    if (shakeAmp > 0.0005) {                                  // 画面の揺れ：だんだん収まる
+      camera.position.set(C.pos[0] + (Math.random() - .5) * shakeAmp * 2, C.pos[1] + (Math.random() - .5) * shakeAmp * 2, C.pos[2]);
+      camera.lookAt(C.look[0], C.look[1], C.look[2]);
+      shakeAmp *= Math.exp(-CFG.shake.decay * dt);
+    } else if (shakeAmp > 0) { shakeAmp = 0; camera.position.set(C.pos[0], C.pos[1], C.pos[2]); camera.lookAt(C.look[0], C.look[1], C.look[2]); }
     renderer.render(scene, camera);
     requestAnimationFrame(frame);
   }

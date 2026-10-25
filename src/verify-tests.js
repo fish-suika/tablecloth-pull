@@ -78,6 +78,3 @@ check('失敗のときは near にならない', !jt(0.5, ['glass']).near);
 check('最初の数テーブルは広い幅で判定される', jt(1.8, ['glass'], 0).result === 'ok' && jt(1.8, ['glass'], 5).result === 'slow');
 check('tableRange は judgeTable の range と同じ', (() => { const a = tableRange(['glass', 'cake'], 2, CFG), b = jt(3, ['glass', 'cake'], 2).range; return a.lo === b.lo && a.hi === b.hi; })());
 
-const sumEl = document.getElementById('sum');
-sumEl.textContent = nNg === 0 ? ('全 ' + nOk + ' 件 PASS') : (nNg + ' 件 FAIL / ' + (nOk + nNg) + ' 件');
-sumEl.style.color = nNg === 0 ? '#6bd07a' : '#ff6b6b';

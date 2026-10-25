@@ -11,6 +11,8 @@
   buildWorld(scene);
   const camera = new THREE.PerspectiveCamera(40, 9 / 16, 0.1, 80);
   const C = CFG.cam;
+  let shakeAmp = 0;
+  function shake(a) { shakeAmp = Math.max(shakeAmp, a); }
 
   function fit() {
     const w = view.clientWidth, h = view.clientHeight;
@@ -38,10 +40,23 @@
 
   const hud = $('hud'), meter = $('meter'), mZone = $('meterZone'), mMark = $('meterMark'), mVal = $('meterVal'), hint = $('hint');
 
-  function refreshHud() { $('streak').textContent = streak; $('best').textContent = best; $('titleBest').textContent = best; }
+  function refreshHud() {
+    $('streak').textContent = streak; $('best').textContent = best; $('titleBest').textContent = best;
+    $('streakBox').className = 'chip t' + glowTier(streak);
+  }
   function pop(text, cls) {
     const d = document.createElement('div'); d.className = 'pop ' + cls; d.textContent = text;
     $('pops').appendChild(d); setTimeout(() => d.remove(), 1250);
+  }
+  function confetti(n) {
+    const box = $('confetti'), cols = ['#ff6b6b', '#ffd43b', '#51cf66', '#339af0', '#da77f2', '#ff922b'];
+    for (let i = 0; i < n; i++) {
+      const d = document.createElement('div'); d.className = 'cf';
+      d.style.left = (Math.random() * 100) + '%'; d.style.background = cols[i % cols.length];
+      d.style.setProperty('--dx', ((Math.random() - 0.5) * 30) + 'vw'); d.style.setProperty('--rot', (360 + Math.random() * 720) + 'deg');
+      d.style.animationDuration = (1.4 + Math.random() * 1.2) + 's'; d.style.animationDelay = (Math.random() * 0.25) + 's';
+      box.appendChild(d); setTimeout(() => d.remove(), 3200);
+    }
   }
   function showNames(ids) { $('names').textContent = ids.map(id => CFG.items[id].name).join('・'); }
   function setZoneView() {
@@ -57,6 +72,9 @@
     mMark.classList.toggle('bad', !!bad);
     mVal.textContent = '速さ ' + speed.toFixed(1);
   }
+  $('soundBtn').classList.toggle('off', SFX.isMuted());
+  $('soundBtn').addEventListener('click', e => { e.stopPropagation(); SFX.unlock(); SFX.setMuted(!SFX.isMuted()); $('soundBtn').classList.toggle('off', SFX.isMuted()); });
+  addEventListener('pointerdown', () => SFX.unlock(), { capture: true });
   $('zoneBtn').addEventListener('click', e => { e.stopPropagation(); showZone = !showZone; setZoneView(); });
 
   function spawnRound() {
@@ -65,6 +83,7 @@
     range = tableRange(ids, streak, CFG);
     round = makeRound(ids);
     round.ids = ids;
+    round.onShatter = it => { SFX.shatter(it.id); shake(CFG.shake.shatter); };
     showNames(ids);
     round.group.position.x = CFG.world.slideX;
     scene.add(round.group);
@@ -86,6 +105,7 @@
 
   function gameOver(kind) {
     state = 'over';
+    SFX.fail();
     if (streak > best) { best = streak; saveBest(); }
     refreshHud();
     $('overTitle').textContent = kind === 'slow' ? '引きずって落ちた…' : '跳ねて割れた…';
@@ -99,6 +119,9 @@
   function commitPull(speed) {
     const verdict = judgeTable(speed, round.ids, streak, CFG);
     round.pull(speed, verdict);
+    SFX.whip(speed); shake(pullShake(speed, CFG));
+    if (verdict.result === 'slow') setTimeout(SFX.drag, 120); else if (verdict.result === 'fast') setTimeout(SFX.launch, 60);
+    else if (verdict.near) setTimeout(SFX.slowmo, 150);
     state = 'resolve'; resT = 0; popped = false; advanced = false; failAt = 0;
     round.verdict = verdict;
     setMark(speed, verdict.result !== 'ok');
@@ -165,20 +188,30 @@
         if (v.result === 'ok') {
           if (!popped && resT > (v.near ? CFG.fx.nearPopAt : 0.28)) {
             popped = true;
-            if (v.near) pop('ギリギリ！', 'great'); else pop('お見事！', 'good');
+            streak++; refreshHud();
+            const sb = $('streakBox'); sb.classList.remove('bump'); void sb.offsetWidth; sb.classList.add('bump');
+            const pr = praiseFor(streak, v.near, Math.random, CFG);
+            pop(pr.text, pr.cls);
+            if (v.near) SFX.near(); else SFX.success(streak);
+            confetti(confettiCount(streak, CFG));
+            if (isMilestone(streak, CFG)) { pop(streak + '連続！', 'mile'); SFX.milestone(); shake(CFG.shake.milestone); }
           }
           if (!advanced && resT > (v.near ? CFG.fx.nearHold : CFG.fx.okHold)) {
-            advanced = true; streak++; refreshHud();
-            const sb = $('streakBox'); sb.classList.remove('bump'); void sb.offsetWidth; sb.classList.add('bump');
+            advanced = true;
             outgoing = round; spawnRound();
           }
         } else {
-          if (!popped && resT > 0.12) { popped = true; pop(v.result === 'slow' ? '遅すぎ！' : '速すぎ！', 'bad'); }
+          if (!popped && resT > 0.12) { popped = true; pop(failWord(v.result, Math.random, CFG), 'bad'); }
           if (round.shattered && !failAt) failAt = resT;
           if ((failAt && resT > failAt + CFG.fx.failHold) || resT > 3.5) gameOver(v.result);
         }
       }
     }
+    if (shakeAmp > 0.0005) {                                  // 画面の揺れ：だんだん収まる
+      camera.position.set(C.pos[0] + (Math.random() - .5) * shakeAmp * 2, C.pos[1] + (Math.random() - .5) * shakeAmp * 2, C.pos[2]);
+      camera.lookAt(C.look[0], C.look[1], C.look[2]);
+      shakeAmp *= Math.exp(-CFG.shake.decay * dt);
+    } else if (shakeAmp > 0) { shakeAmp = 0; camera.position.set(C.pos[0], C.pos[1], C.pos[2]); camera.lookAt(C.look[0], C.look[1], C.look[2]); }
     renderer.render(scene, camera);
     requestAnimationFrame(frame);
   }

@@ -50,7 +50,7 @@ function clothTexture() {
 }
 
 // 布の経路上の位置：s は経路に沿った長さ（0＝テーブルの奥の縁）
-function pathAt(s, progress) {
+function pathAt(s, progress, whip) {
   const D = CFG.world.tableD, H = CFG.world.drape;
   if (s <= D) return { y: TOP + 0.012, z: -D / 2 + s };
   if (s <= D + H) {
@@ -58,7 +58,7 @@ function pathAt(s, progress) {
     return { y: TOP - (s - D) + 0.012 * (1 - k), z: EDGE + 0.14 * Math.sin(Math.PI * Math.min(1, k * 1.15)) + 0.012 };
   }
   const f = s - D - H;
-  const y = 0.02 + Math.max(0, 0.5 * progress * Math.sin(f * 1.9)) * Math.min(1, f);
+  const y = 0.02 + Math.max(0, 0.5 * whip * progress * Math.sin(f * 1.9)) * Math.min(1, f);
   return { y, z: EDGE + 0.012 + f };
 }
 
@@ -201,7 +201,7 @@ function makeRound(itemIds) {
     phase: 'idle',        // idle → pulling → done
     offset: 0, pt: 0, dur: 1, verdict: null, speed: 0,
     shards: [], shattered: false, settled: false, onShatter: null, onSettle: null,
-    elapsed: 0,
+    elapsed: 0, whip: 1,
   };
 
   function writeCloth() {
@@ -210,7 +210,7 @@ function makeRound(itemIds) {
     const hw = CFG.world.clothW / 2;
     for (let j = 0; j <= CLOTH_NM; j++) {
       const m = j / CLOTH_NM * CLOTH_LEN;
-      const p = pathAt(m + R.offset, prog);
+      const p = pathAt(m + R.offset, prog, R.whip);
       for (let i = 0; i <= CLOTH_NX; i++) {
         const k = (j * (CLOTH_NX + 1) + i) * 3;
         const u = i / CLOTH_NX * 2 - 1;
@@ -233,11 +233,11 @@ function makeRound(itemIds) {
 
   function shatter(it) {
     it.mode = 'gone'; it.mesh.visible = false;
-    const n = 18;
+    const n = 26, sc = CFG.shard[it.id] || [0xcfeeff, 0xff5d73];
     for (let i = 0; i < n; i++) {
       const sz = 0.05 + Math.random() * 0.08;
       const m = new THREE.Mesh(new THREE.BoxGeometry(sz, sz * 0.5, sz * 1.4),
-        new THREE.MeshStandardMaterial({ color: i % 4 === 0 ? 0xff5d73 : 0xcfeeff, transparent: true, opacity: 0.8 }));
+        new THREE.MeshStandardMaterial({ color: i % 4 === 0 ? sc[1] : sc[0], transparent: true, opacity: 0.9 }));
       m.position.set(it.x, Math.max(it.y, 0.05) + 0.2, it.z);
       const a = Math.random() * Math.PI * 2, sp = 1 + Math.random() * 2.6;
       shardsGroup.add(m);
@@ -273,7 +273,7 @@ function makeRound(itemIds) {
   }
 
   R.pull = function (speed, verdict) {
-    R.speed = speed; R.verdict = verdict; R.phase = 'pulling'; R.pt = 0;
+    R.speed = speed; R.verdict = verdict; R.whip = Math.min(1.6, 0.6 + 0.14 * speed); R.phase = 'pulling'; R.pt = 0;
     R.dur = Math.min(CFG.fx.durMax, Math.max(CFG.fx.durMin, CFG.fx.durK / Math.max(speed, 0.5)));
     // 物ごとの判定（verdict.per）で動きが決まる。全部成功ならギリギリの物ほど大きく揺れ、一部だけ外れたら外れた物だけ失敗する
     items.forEach((it, k) => {

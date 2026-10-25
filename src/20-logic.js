@@ -78,3 +78,25 @@ function judgeTable(speed, ids, tableNo, cfg) {
 
 // そのテーブル全体の成功の幅
 function tableRange(ids, tableNo, cfg) { return combineRanges(ids.map(id => itemRange(cfg.items[id], tableNo, cfg))); }
+
+// ---- 演出の選び方（褒め言葉・紙吹雪・節目） ----
+// count＝この成功で何連続になるか。rng は 0〜1 の乱数。cls は見た目の大きさ（good → great → epic）
+function praiseFor(count, near, rng, cfg) {
+  const pick = a => a[Math.floor(rng() * a.length) % a.length];
+  let tier = cfg.praise.ok[0];
+  for (const t of cfg.praise.ok) if (count >= t.from) tier = t;
+  const cls = count >= cfg.praise.ok[3].from ? 'epic' : (near || count >= cfg.praise.ok[2].from ? 'great' : 'good');
+  return { text: near ? pick(cfg.praise.near) : pick(tier.words), cls };
+}
+function failWord(result, rng, cfg) { const a = cfg.praise[result]; return a[Math.floor(rng() * a.length) % a.length]; }
+function isMilestone(count, cfg) { return count > 0 && count % cfg.praise.milestoneEvery === 0; }
+// 紙吹雪の数：3連続から。連続数に比例、節目は倍
+function confettiCount(count, cfg) {
+  if (count < 3) return 0;
+  const n = Math.min(cfg.praise.confettiMax, 8 + count * 3);
+  return isMilestone(count, cfg) ? Math.min(cfg.praise.confettiMax * 1.5, n * 2) : n;
+}
+// 連続数に応じた連続数チップの光り方（0〜3）
+function glowTier(count) { return count >= 20 ? 3 : count >= 12 ? 2 : count >= 5 ? 1 : 0; }
+// 引いた瞬間の画面の揺れの強さ（速いほど強い）
+function pullShake(speed, cfg) { return Math.min(cfg.shake.pullMax, speed * cfg.shake.pull); }

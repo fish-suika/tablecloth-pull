@@ -50,6 +50,16 @@
   .pop.good{color:#2b8a3e} .pop.great{color:#e8890c;font-size:calc(var(--u)*13)} .pop.bad{color:#e03131}
   @keyframes floatUp{0%{opacity:0;margin-top:calc(var(--u)*3);scale:.6}15%{opacity:1;scale:1.15}30%{scale:1}100%{opacity:0;margin-top:calc(var(--u)*-16)}}
 
+  .pop.epic{color:#d6336c;font-size:calc(var(--u)*15)}
+  .pop.mile{top:calc(var(--u)*-17);color:#7048e8;font-size:calc(var(--u)*13);animation-duration:1.5s}
+  #streakBox.t1{background:#fff3bf;box-shadow:0 2px 0 rgba(0,0,0,.2),0 0 calc(var(--u)*2.5) #ffe066}
+  #streakBox.t2{background:#ffd8a8;box-shadow:0 2px 0 rgba(0,0,0,.2),0 0 calc(var(--u)*3.5) #ff922b}
+  #streakBox.t3{background:linear-gradient(135deg,#ffd43b,#ff8787,#da77f2);box-shadow:0 2px 0 rgba(0,0,0,.2),0 0 calc(var(--u)*5) #f783ac;animation:glowHue 1.2s linear infinite}
+  #streakBox.t3.bump{animation:bump .3s ease-out,glowHue 1.2s linear infinite}
+  @keyframes glowHue{0%{filter:hue-rotate(0)}100%{filter:hue-rotate(40deg)}}
+  #confetti{position:absolute;inset:0;z-index:7;pointer-events:none;overflow:hidden}
+  .cf{position:absolute;top:-4%;width:calc(var(--u)*2);height:calc(var(--u)*3.2);border-radius:calc(var(--u)*.3);animation:cfFall linear forwards}
+  @keyframes cfFall{0%{transform:translate3d(0,0,0) rotate(0)}100%{transform:translate3d(var(--dx),calc(var(--u)*190),0) rotate(var(--rot))}}
   #hint{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom) + var(--u)*8);z-index:5;pointer-events:none;text-align:center;color:#fff;font-size:calc(var(--u)*4.4);font-weight:900;text-shadow:0 2px 6px rgba(0,0,0,.7);opacity:0;transition:opacity .2s}
   #hint.on{opacity:1}
   #hint .arrow{display:block;font-size:calc(var(--u)*9);animation:nudge 1s ease-in-out infinite}
@@ -72,6 +82,7 @@
     <div class="row">
       <div class="chip" id="streakBox"><small>連続</small><b id="streak">0</b></div>
       <div class="chip" id="bestBox"><small>自己ベスト</small><b id="best">0</b></div>
+      <button class="ibtn" id="soundBtn" title="音の入り切り">♪</button>
       <button class="ibtn" id="zoneBtn" title="成功の幅を先に見せる／隠す">幅</button>
     </div>
   </div>
@@ -80,6 +91,7 @@
     <div id="meterLab"><span>遅い</span><span id="meterVal"></span><span>速い</span></div>
   </div>
   <div id="names"></div>
+  <div id="confetti"></div>
   <div id="pops"></div>
   <div id="hint"><span class="arrow">▼</span><span class="ph">下へ</span><span class="ph">ちょうどいい速さで</span><span class="ph">スワイプ</span></div>
 

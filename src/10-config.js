@@ -29,6 +29,28 @@ const CFG = {
     { upTo: 12, count: [1, 3], pool: ['cake', 'tower', 'candle', 'glass', 'plate', 'paperCup', 'pot'], must: ['cake', 'tower'], minW: 0.8 },
     { upTo: Infinity, count: [2, 3], pool: ['paperCup', 'plate', 'glass', 'candle', 'pot', 'cake', 'tower'], minW: 0.7 },
   ],
+  // 褒め言葉：from 連続以上で使う。連続数が増えるほど大きく褒める。near はギリギリ成功のとき
+  praise: {
+    ok: [
+      { from: 1,  words: ['お見事！', 'ナイス！', 'いい引き！'] },
+      { from: 4,  words: ['すごい！', 'うまい！', 'さすが！'] },
+      { from: 8,  words: ['天才！', '名人！', 'プロの技！'] },
+      { from: 13, words: ['神業！', '伝説！', '人間国宝！'] },
+      { from: 20, words: ['人間じゃない！', 'ありえない！', '世界一！'] },
+    ],
+    near: ['ギリギリ！', 'あぶなっ！', '神業！'],
+    slow: ['ずるずる〜！', '遅すぎ！', '引きずった！'],
+    fast: ['ロケット発射！', '速すぎ！', '飛んでった！'],
+    milestoneEvery: 5,      // この連続数ごとに「N連続！」を大きく出す
+    confettiMax: 80,        // 紙吹雪の最大数（3連続から出る）
+  },
+  // 割れたときの破片の色（[おもな色, 差し色]）
+  shard: {
+    paperCup: [0xffffff, 0xe8575a], plate: [0xf6efe3, 0xf29bb7], glass: [0xcfeeff, 0xff5d73], candle: [0xfff3d6, 0xffb43a],
+    pot: [0x34353b, 0x888b94], cake: [0xfff0f3, 0xe03148], tower: [0xcfeeff, 0xffd86b],
+  },
+  // 画面の揺れ（カメラ）：pull＝引いた瞬間（速さに比例）、shatter＝割れた瞬間、milestone＝節目
+  shake: { pull: 0.012, pullMax: 0.1, shatter: 0.16, milestone: 0.08, decay: 5 },
   // 演出の時間（秒）
   // 引く動きの長さ＝ durK ÷ 速さ（秒）を durMin〜durMax に収める。遅く引くと布もゆっくり動く
   // ギリギリ成功のスロー：slowScale 倍の速さで slowTime 秒（実時間）。そのあと nearPopAt 秒で褒め、nearHold 秒で次へ
@@ -36,5 +58,5 @@ const CFG = {
         slowScale: 0.3, slowTime: 1.0, nearPopAt: 0.95, nearHold: 1.5 },
   world: { tableTop: 1.0, tableW: 3.4, tableD: 2.0, drape: 1.0, clothW: 3.9, slideX: 9 },
   // カメラ：横の画角を固定して、斜め上から見下ろす
-  cam: { hfov: 36, pos: [0, 5.0, 6.6], look: [0, 0.7, 0.3] },
+  cam: { hfov: 36, pos: [0, 5.0, 6.6], look: [0, 1.5, 0.3] },
 };
