@@ -30,7 +30,7 @@ check('最初の数テーブルは幅が広い（中心は同じ）', (() => {
   const a = itemRange(g, 0, CFG), b = itemRange(g, CFG.widenTables, CFG);
   return near((a.lo + a.hi) / 2, (b.lo + b.hi) / 2) && (a.hi - a.lo) > (b.hi - b.lo);
 })());
-check('widenTables を過ぎたら元の幅', (() => { const b = itemRange(g, CFG.widenTables, CFG); return near(b.lo, g.lo) && near(b.hi, g.hi); })());
+check('widenTables を過ぎたら倍率だけの幅（中心は同じ）', (() => { const b = itemRange(g, CFG.widenTables, CFG), w = (g.hi - g.lo) * CFG.widthScale; return near(b.hi - b.lo, w) && near((b.lo + b.hi) / 2, (g.lo + g.hi) / 2); })());
 check('幅の重なり：狭いほうに合う', (() => { const r = combineRanges([{ lo: 2, hi: 5 }, { lo: 3, hi: 7 }]); return r.lo === 3 && r.hi === 5 && !r.empty; })());
 check('重なりがなければ empty', combineRanges([{ lo: 1, hi: 2 }, { lo: 3, hi: 4 }]).empty);
 check('1つだけならその幅', (() => { const r = combineRanges([{ lo: 2, hi: 5 }]); return r.lo === 2 && r.hi === 5; })());
@@ -73,8 +73,8 @@ check('テーブル判定：重い物と一緒だと、グラス単独で成功�
 check('テーブル判定：軽い物と一緒だと速すぎて失敗', jt(4.5, ['plate', 'paperCup']).result === 'fast');
 check('テーブル判定：物ごとの結果が返る（外れた物だけ失敗）', (() => { const j = jt(3.0, ['glass', 'pot']); return j.per[0].result === 'ok' && j.per[1].result === 'slow'; })());
 check('テーブル判定：全員成功なら全員 ok', jt(4.2, ['glass', 'plate', 'pot']).per.every(p => p.result === 'ok'));
-check('テーブル判定：どれかがギリギリなら near', jt(2.25, ['paperCup', 'glass']).near && !jt(3.0, ['plate']).near);
+check('テーブル判定：どれかがギリギリなら near', jt(1.9, ['paperCup', 'glass']).near && !jt(3.0, ['plate']).near);
 check('失敗のときは near にならない', !jt(0.5, ['glass']).near);
-check('最初の数テーブルは広い幅で判定される', jt(1.8, ['glass'], 0).result === 'ok' && jt(1.8, ['glass'], 5).result === 'slow');
+check('最初の数テーブルは広い幅で判定される', jt(1.4, ['glass'], 0).result === 'ok' && jt(1.4, ['glass'], 5).result === 'slow');
 check('tableRange は judgeTable の range と同じ', (() => { const a = tableRange(['glass', 'cake'], 2, CFG), b = jt(3, ['glass', 'cake'], 2).range; return a.lo === b.lo && a.hi === b.hi; })());
 

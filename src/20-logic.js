@@ -19,7 +19,7 @@ function measureSpeed(trail, cfg) {
 // 物の「ちょうどいい速さ」の幅。最初の数テーブルは中心を保ったまま広げる
 function itemRange(def, tableNo, cfg) {
   const c = (def.lo + def.hi) / 2, w = def.hi - def.lo;
-  const k = tableNo < cfg.widenTables ? cfg.widen : 1;
+  const k = (cfg.widthScale || 1) * (tableNo < cfg.widenTables ? cfg.widen : 1);
   return { lo: c - w * k / 2, hi: c + w * k / 2 };
 }
 
@@ -58,7 +58,7 @@ function pickTable(streak, rng, cfg) {
       const id = t.pool[Math.floor(rng() * t.pool.length)];
       if (!ids.includes(id)) ids.push(id);
     }
-    const r = combineRanges(ids.map(id => cfg.items[id]));
+    const r = combineRanges(ids.map(id => itemRange(cfg.items[id], 99, cfg)));   // 倍率をかけた幅で重なりを見る
     if (!r.empty && r.hi - r.lo >= t.minW) return ids;
   }
   return [t.must ? t.must[0] : t.pool[0]];          // 見つからなければ1つだけ載せる
