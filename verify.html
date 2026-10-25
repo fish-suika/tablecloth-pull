@@ -43,6 +43,14 @@ const CFG = {
     pot:      { name: '鉄鍋', lo: 4.0, hi: 7.2 },
     cake:     { name: 'ケーキ', lo: 2.8, hi: 4.8 },
     tower:    { name: 'シャンパンタワー', lo: 3.0, hi: 4.6 },
+    // 13連続〜：高そうで壊れやすい物（幅が狭い）
+    fishbowl: { name: '金魚の水槽', lo: 3.0, hi: 4.4 },
+    vase:     { name: '高そうな花瓶', lo: 3.2, hi: 4.6 },
+    cardTower:{ name: 'トランプタワー', lo: 3.3, hi: 4.3 },
+    // 20連続〜：ばかばかしい物。soft＝割れずに「ぽんっ」と散る（猫・雪だるま）
+    cat:      { name: '寝ている猫', lo: 2.8, hi: 4.4, soft: true },
+    crown:    { name: '王様の冠', lo: 2.2, hi: 4.0 },
+    snowman:  { name: '雪だるま', lo: 2.6, hi: 4.2, soft: true },
   },
   // 難しさの目標：[連続数, そのテーブル全体の成功の幅の目標]（間は直線でつなぐ。20連続以降は最後の値）。
   // 載る物は、tier の条件を満たす組み合わせのうち、この目標の幅に近いものを選ぶ → 連続するほど幅が狭くなる
@@ -53,8 +61,18 @@ const CFG = {
     { upTo: 3,  count: [1, 1], pool: ['paperCup', 'plate', 'glass'], minW: 0, top: 1 },
     { upTo: 7,  count: [2, 3], pool: ['plate', 'glass', 'paperCup', 'candle', 'pot'], minW: 1.0 },
     { upTo: 12, count: [1, 3], pool: ['cake', 'tower', 'candle', 'glass', 'plate', 'paperCup', 'pot'], must: ['cake', 'tower'], minW: 0.8 },
-    { upTo: Infinity, count: [2, 3], pool: ['paperCup', 'plate', 'glass', 'candle', 'pot', 'cake', 'tower'], minW: 0.7 },
+    // 12〜19連続（13個目〜20個目）：高そうな物が必ず1つ入る
+    { upTo: 20, count: [1, 3], pool: ['fishbowl', 'vase', 'cardTower', 'tower', 'cake', 'candle', 'glass', 'pot', 'plate'], must: ['fishbowl', 'vase', 'cardTower'], minW: 0.7 },
+    // 20連続〜：ばかばかしい物が必ず1つ入る。あとはランダム
+    { upTo: Infinity, count: [1, 3], pool: ['cat', 'crown', 'snowman', 'fishbowl', 'vase', 'cardTower', 'tower', 'cake', 'candle', 'glass', 'pot', 'plate', 'paperCup'], must: ['cat', 'crown', 'snowman'], minW: 0.6 },
   ],
+  // 結果画面の称号：from 連続以上
+  rank: [
+    { from: 0,  name: 'はじめの一歩' }, { from: 3,  name: 'テーブル見習い' }, { from: 6,  name: 'クロス引き職人' },
+    { from: 10, name: '宴会の達人' }, { from: 15, name: '神業の名人' }, { from: 20, name: '人間国宝' }, { from: 30, name: 'テーブルクロス王' },
+  ],
+  // X 共有：hashtag は「#」なし。url は公開したら入れる（空なら、いま開いているページの URL を使う）
+  share: { hashtag: 'テーブルクロス引き', url: '' },
   // 褒め言葉：from 連続以上で使う。連続数が増えるほど大きく褒める。near はギリギリ成功のとき
   praise: {
     ok: [
@@ -74,6 +92,8 @@ const CFG = {
   shard: {
     paperCup: [0xffffff, 0xe8575a], plate: [0xf6efe3, 0xf29bb7], glass: [0xcfeeff, 0xff5d73], candle: [0xfff3d6, 0xffb43a],
     pot: [0x34353b, 0x888b94], cake: [0xfff0f3, 0xe03148], tower: [0xcfeeff, 0xffd86b],
+    fishbowl: [0xcfeeff, 0xff8a1f], vase: [0xf4f7ff, 0x2f5fd0], cardTower: [0xffffff, 0xe03148],
+    cat: [0xf2a65a, 0xfff3e0], crown: [0xffd43b, 0xe03148], snowman: [0xffffff, 0xff8a1f],
   },
   // 画面の揺れ（カメラ）：pull＝引いた瞬間（速さに比例）、shatter＝割れた瞬間、milestone＝節目
   shake: { pull: 0.012, pullMax: 0.1, shatter: 0.16, milestone: 0.08, decay: 5 },
@@ -206,6 +226,26 @@ function confettiCount(count, cfg) {
 function glowTier(count) { return count >= 20 ? 3 : count >= 12 ? 2 : count >= 5 ? 1 : 0; }
 // 引いた瞬間の画面の揺れの強さ（速いほど強い）
 function pullShake(speed, cfg) { return Math.min(cfg.shake.pullMax, speed * cfg.shake.pull); }
+
+// ---- 結果画面・共有 ----
+// 称号（連続数に応じて）
+function rankFor(streak, cfg) { let r = cfg.rank[0]; for (const x of cfg.rank) if (streak >= x.from) r = x; return r.name; }
+// 失敗した物の名前（判定の per から）。例：['グラス', '鉄鍋']
+function failedNames(ids, verdict, cfg) { return ids.filter((id, i) => verdict.per[i].result !== 'ok').map(id => cfg.items[id].name); }
+// 失敗の見出し。例：「グラスと鉄鍋が引きずられて落ちた…」
+function overTitle(names, result, allSoft) {
+  const who = names.length ? names.join('と') + 'が' : '';
+  return who + (result === 'slow' ? '引きずられて落ちた…' : allSoft ? '跳ね上がって散った…' : '跳ね上がって割れた…');
+}
+// 失敗した物がぜんぶ「割れない物」（猫・雪だるま）か
+function failedAllSoft(ids, verdict, cfg) { const f = ids.filter((id, i) => verdict.per[i].result !== 'ok'); return f.length > 0 && f.every(id => cfg.items[id].soft); }
+// X に投稿する文章（url が空なら文章だけ）
+function shareText(streak, best, cfg, url) {
+  const head = streak > 0 ? 'テーブルクロス引きで ' + streak + '連続成功！（' + rankFor(streak, cfg) + '）' : 'テーブルクロス引きに挑戦！';
+  return head + (best > streak ? ' 自己ベスト' + best + '連続' : '') + ' #' + cfg.share.hashtag;
+}
+// PC 用：X の投稿画面を開く URL
+function tweetUrl(text, url) { return 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(text) + (url ? '&url=' + encodeURIComponent(url) : ''); }
 // ===== 検証（three.js を使わない純粋ロジック） =====
 const $out = document.getElementById('out');
 let nOk = 0, nNg = 0;
@@ -315,6 +355,28 @@ check('20連続以降は狭い（幅の平均が 0連続の半分以下）', avg
 check('どの回も幅の重なりがある（成功できる速さが存在する）', tiersOk(0, 40, ids => tableWidth(ids, CFG) > 0));
 check('組み合わせは毎回同じにならない（同じ連続数でも複数の組み合わせが出る）', (() => { const set = new Set(); for (let k = 1; k <= 60; k++) set.add(pickTable(5, seeded(k * 7 + 1), CFG).slice().sort().join()); return set.size >= 3; })());
 
+// ---- Phase 4：13連続以降の物・称号・結果画面・共有 ----
+check('12〜19連続（13個目〜20個目）は高そうな物が必ず1つ入る', tiersOk(12, 20, ids => ['fishbowl', 'vase', 'cardTower'].some(k => ids.includes(k))));
+check('20連続以降はばかばかしい物が必ず1つ入る', tiersOk(20, 45, ids => ['cat', 'crown', 'snowman'].some(k => ids.includes(k))));
+check('13連続より前には高そうな物・ばかばかしい物は出ない', tiersOk(0, 12, ids => !ids.some(k => ['fishbowl', 'vase', 'cardTower', 'cat', 'crown', 'snowman'].includes(k))));
+check('13個目〜19個目にはばかばかしい物は出ない', tiersOk(12, 20, ids => !ids.some(k => ['cat', 'crown', 'snowman'].includes(k))));
+check('13連続以降もどの回も幅の重なりがある・tier の最小幅以上', tiersOk(12, 60, (ids, st) => { const w = tableWidth(ids, CFG); return w > 0 && w >= tierOf(st, CFG).minW - 1e-9; }));
+check('20連続以降の幅はもう狭い（平均 1.7 以下）', avgW(25, 200) <= 1.7);
+check('設定にある物はすべて名前・幅・破片の色がある', Object.entries(CFG.items).every(([k, v]) => v.name && v.lo > 0 && v.hi > v.lo && CFG.shard[k]));
+check('新しい物の幅（倍率つき・広げなし）がメーターの中に収まる', Object.keys(CFG.items).every(k => { const r = itemRange(CFG.items[k], 99, CFG); return r.lo > 0 && r.hi < CFG.speedMax; }));
+check('猫と雪だるまは割れずに散る（soft）、それ以外は割れる', CFG.items.cat.soft && CFG.items.snowman.soft && !CFG.items.glass.soft && !CFG.items.vase.soft);
+
+check('称号は連続数で上がる', rankFor(0, CFG) === 'はじめの一歩' && rankFor(3, CFG) === 'テーブル見習い' && rankFor(10, CFG) === '宴会の達人' && rankFor(99, CFG) === 'テーブルクロス王');
+check('称号は下がらない（連続数が増えると同じか上）', (() => { let i = -1; for (let s = 0; s <= 40; s++) { const j = CFG.rank.findIndex(x => x.name === rankFor(s, CFG)); if (j < i) return false; i = j; } return true; })());
+check('失敗した物の名前が取れる（成功した物は入らない）', (() => { const ids = ['glass', 'pot']; const v = judgeTable(3.0, ids, 99, CFG); const n = failedNames(ids, v, CFG); return n.length === 1 && n[0] === '鉄鍋'; })());
+check('失敗の見出し：遅い・速い', overTitle(['鉄鍋'], 'slow') === '鉄鍋が引きずられて落ちた…' && overTitle(['グラス', 'お皿'], 'fast') === 'グラスとお皿が跳ね上がって割れた…');
+check('共有の文章：連続数・称号・ハッシュタグ', (() => { const t = shareText(12, 12, CFG, ''); return t.includes('12連続') && t.includes(rankFor(12, CFG)) && t.includes('#' + CFG.share.hashtag); })());
+check('共有の文章：自己ベストが上なら併記、同じなら省く', shareText(5, 9, CFG, '').includes('自己ベスト9連続') && !shareText(9, 9, CFG, '').includes('自己ベスト'));
+check('共有の文章：0連続でも文章になる', shareText(0, 0, CFG, '').includes('挑戦'));
+check('X の投稿 URL：文章と URL がエンコードされる', (() => { const u = tweetUrl('a b#c', 'https://x.example/g?x=1&y=2'); return u.startsWith('https://twitter.com/intent/tweet?text=a%20b%23c') && u.includes('&url=https%3A%2F%2Fx.example%2Fg%3Fx%3D1%26y%3D2'); })());
+check('X の投稿 URL：URL がなければ付けない', !tweetUrl('abc', '').includes('url='));
+
+check('猫・雪だるまだけが失敗したときは「散った」', (() => { const ids = ['cat', 'glass']; const v = judgeTable(6.0, ['cat'], 99, CFG); return failedAllSoft(['cat'], v, CFG) && overTitle(['寝ている猫'], 'fast', true) === '寝ている猫が跳ね上がって散った…' && !failedAllSoft(['glass'], judgeTable(7, ['glass'], 99, CFG), CFG); })());
 const sumEl = document.getElementById('sum');
 sumEl.textContent = nNg === 0 ? ('全 ' + nOk + ' 件 PASS') : (nNg + ' 件 FAIL / ' + (nOk + nNg) + ' 件');
 sumEl.style.color = nNg === 0 ? '#6bd07a' : '#ff6b6b';

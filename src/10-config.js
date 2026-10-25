@@ -21,6 +21,14 @@ const CFG = {
     pot:      { name: '鉄鍋', lo: 4.0, hi: 7.2 },
     cake:     { name: 'ケーキ', lo: 2.8, hi: 4.8 },
     tower:    { name: 'シャンパンタワー', lo: 3.0, hi: 4.6 },
+    // 13連続〜：高そうで壊れやすい物（幅が狭い）
+    fishbowl: { name: '金魚の水槽', lo: 3.0, hi: 4.4 },
+    vase:     { name: '高そうな花瓶', lo: 3.2, hi: 4.6 },
+    cardTower:{ name: 'トランプタワー', lo: 3.3, hi: 4.3 },
+    // 20連続〜：ばかばかしい物。soft＝割れずに「ぽんっ」と散る（猫・雪だるま）
+    cat:      { name: '寝ている猫', lo: 2.8, hi: 4.4, soft: true },
+    crown:    { name: '王様の冠', lo: 2.2, hi: 4.0 },
+    snowman:  { name: '雪だるま', lo: 2.6, hi: 4.2, soft: true },
   },
   // 難しさの目標：[連続数, そのテーブル全体の成功の幅の目標]（間は直線でつなぐ。20連続以降は最後の値）。
   // 載る物は、tier の条件を満たす組み合わせのうち、この目標の幅に近いものを選ぶ → 連続するほど幅が狭くなる
@@ -31,8 +39,18 @@ const CFG = {
     { upTo: 3,  count: [1, 1], pool: ['paperCup', 'plate', 'glass'], minW: 0, top: 1 },
     { upTo: 7,  count: [2, 3], pool: ['plate', 'glass', 'paperCup', 'candle', 'pot'], minW: 1.0 },
     { upTo: 12, count: [1, 3], pool: ['cake', 'tower', 'candle', 'glass', 'plate', 'paperCup', 'pot'], must: ['cake', 'tower'], minW: 0.8 },
-    { upTo: Infinity, count: [2, 3], pool: ['paperCup', 'plate', 'glass', 'candle', 'pot', 'cake', 'tower'], minW: 0.7 },
+    // 12〜19連続（13個目〜20個目）：高そうな物が必ず1つ入る
+    { upTo: 20, count: [1, 3], pool: ['fishbowl', 'vase', 'cardTower', 'tower', 'cake', 'candle', 'glass', 'pot', 'plate'], must: ['fishbowl', 'vase', 'cardTower'], minW: 0.7 },
+    // 20連続〜：ばかばかしい物が必ず1つ入る。あとはランダム
+    { upTo: Infinity, count: [1, 3], pool: ['cat', 'crown', 'snowman', 'fishbowl', 'vase', 'cardTower', 'tower', 'cake', 'candle', 'glass', 'pot', 'plate', 'paperCup'], must: ['cat', 'crown', 'snowman'], minW: 0.6 },
   ],
+  // 結果画面の称号：from 連続以上
+  rank: [
+    { from: 0,  name: 'はじめの一歩' }, { from: 3,  name: 'テーブル見習い' }, { from: 6,  name: 'クロス引き職人' },
+    { from: 10, name: '宴会の達人' }, { from: 15, name: '神業の名人' }, { from: 20, name: '人間国宝' }, { from: 30, name: 'テーブルクロス王' },
+  ],
+  // X 共有：hashtag は「#」なし。url は公開したら入れる（空なら、いま開いているページの URL を使う）
+  share: { hashtag: 'テーブルクロス引き', url: '' },
   // 褒め言葉：from 連続以上で使う。連続数が増えるほど大きく褒める。near はギリギリ成功のとき
   praise: {
     ok: [
@@ -52,6 +70,8 @@ const CFG = {
   shard: {
     paperCup: [0xffffff, 0xe8575a], plate: [0xf6efe3, 0xf29bb7], glass: [0xcfeeff, 0xff5d73], candle: [0xfff3d6, 0xffb43a],
     pot: [0x34353b, 0x888b94], cake: [0xfff0f3, 0xe03148], tower: [0xcfeeff, 0xffd86b],
+    fishbowl: [0xcfeeff, 0xff8a1f], vase: [0xf4f7ff, 0x2f5fd0], cardTower: [0xffffff, 0xe03148],
+    cat: [0xf2a65a, 0xfff3e0], crown: [0xffd43b, 0xe03148], snowman: [0xffffff, 0xff8a1f],
   },
   // 画面の揺れ（カメラ）：pull＝引いた瞬間（速さに比例）、shatter＝割れた瞬間、milestone＝節目
   shake: { pull: 0.012, pullMax: 0.1, shatter: 0.16, milestone: 0.08, decay: 5 },

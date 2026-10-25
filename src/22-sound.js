@@ -90,6 +90,9 @@ const SFX = (function () {
     drag() { noise('lowpass', 500, 220, 0.6, 0.45, 0, 2); },             // 引きずられる
     launch() { tone('sine', 280, 1400, 0.45, 0.22); noise('bandpass', 1200, 3000, 0.4, 0.15); },   // ロケットのように飛ぶ
     shatter(kind) {
+      if (kind === 'cat') { tone('sawtooth', 520, 900, 0.16, 0.12); tone('sawtooth', 900, 420, 0.3, 0.12, 0.16); noise('lowpass', 600, 200, 0.2, 0.25); return; }   // にゃーん
+      if (kind === 'snowman') { noise('lowpass', 900, 200, 0.4, 0.4); tone('sine', 300, 120, 0.3, 0.2); return; }                                              // ぼふっ
+      if (kind === 'crown') { for (let i = 0; i < 6; i++) tone('triangle', 1800 + Math.random() * 2500, 1500, 0.2, 0.12, Math.random() * 0.25); noise('highpass', 4000, 7000, 0.15, 0.2); return; }   // 金属のチャリーン
       for (let i = 0; i < 10; i++) noise('highpass', 3000 + Math.random() * 2500, 6000, 0.07, 0.3, Math.random() * 0.22, 0.8);
       if (kind === 'pot') { tone('square', 190, 90, 0.35, 0.28); noise('lowpass', 900, 200, 0.3, 0.4); }          // 鉄鍋はガラスでなくガシャン
       else if (kind === 'cake') { noise('lowpass', 700, 150, 0.25, 0.4); tone('sine', 180, 60, 0.25, 0.3); }      // ケーキはぐしゃ

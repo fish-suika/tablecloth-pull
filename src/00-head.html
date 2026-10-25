@@ -70,6 +70,11 @@
   .screen h1{font-size:calc(var(--u)*11);font-weight:900;line-height:1.25;text-shadow:0 3px 0 rgba(0,0,0,.4)}
   .screen h2{font-size:calc(var(--u)*8);font-weight:900}
   .screen p{font-size:calc(var(--u)*4.4);line-height:1.7;font-weight:700}
+  #overNew{display:none;padding:calc(var(--u)*1) calc(var(--u)*5);border-radius:calc(var(--u)*5);background:#ff6b6b;color:#fff;font-weight:900;font-size:calc(var(--u)*5);animation:bump .5s ease-out}
+  #overNew.on{display:block}
+  .rank{font-size:calc(var(--u)*5.2);color:#ffd43b;font-weight:900}
+  .sbtn{border:1px solid rgba(255,255,255,.45);background:transparent;color:#fff;border-radius:calc(var(--u)*4);padding:calc(var(--u)*1.8) calc(var(--u)*6);font-size:calc(var(--u)*3.8);font-weight:700}
+  .sbtn:active{background:rgba(255,255,255,.15)}
   .big{font-size:calc(var(--u)*22);font-weight:900;color:#ffd43b;line-height:1;font-variant-numeric:tabular-nums}
   .btn{border:0;border-radius:calc(var(--u)*5);padding:calc(var(--u)*3.4) calc(var(--u)*10);font-size:calc(var(--u)*6);font-weight:900;background:#ffd43b;color:#3b2a00;box-shadow:0 calc(var(--u)*1) 0 #c99a00}
   .btn:active{transform:translateY(2px);box-shadow:0 calc(var(--u)*.4) 0 #c99a00}
@@ -105,8 +110,11 @@
     <h2 id="overTitle">失敗…</h2>
     <p>連続成功</p>
     <div class="big" id="overScore">0</div>
+    <div id="overNew">新記録！</div>
+    <p class="nw rank" id="overRank"></p>
     <p class="nw" id="overBest"></p>
     <button class="btn" id="againBtn">もう一回</button>
+    <button class="sbtn" id="shareBtn">Xで共有</button>
   </div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>

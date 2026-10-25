@@ -236,7 +236,7 @@ function makeRound(itemIds) {
     const n = 26, sc = CFG.shard[it.id] || [0xcfeeff, 0xff5d73];
     for (let i = 0; i < n; i++) {
       const sz = 0.05 + Math.random() * 0.08;
-      const m = new THREE.Mesh(new THREE.BoxGeometry(sz, sz * 0.5, sz * 1.4),
+      const m = new THREE.Mesh((CFG.items[it.id] && CFG.items[it.id].soft) ? new THREE.SphereGeometry(sz * 1.1, 8, 6) : new THREE.BoxGeometry(sz, sz * 0.5, sz * 1.4),   // 猫・雪だるまは割れずにふわっと散る
         new THREE.MeshStandardMaterial({ color: i % 4 === 0 ? sc[1] : sc[0], transparent: true, opacity: 0.9 }));
       m.position.set(it.x, Math.max(it.y, 0.05) + 0.2, it.z);
       const a = Math.random() * Math.PI * 2, sp = 1 + Math.random() * 2.6;

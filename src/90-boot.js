@@ -103,14 +103,51 @@
     spawnRound();
   }
 
+  let lastResult = { streak: 0, best: 0, title: '' };
+
+  // ---- X 共有：スマホは画像つき（Web Share API）、PC は X の投稿画面（文章＋URL。画像は自動では付けられない） ----
+  function resultCanvas() {
+    const c = document.createElement('canvas'); c.width = 1080; c.height = 1350;
+    const g = c.getContext('2d'), F = '"Hiragino Kaku Gothic ProN","Yu Gothic","Meiryo",sans-serif';
+    const bg = g.createLinearGradient(0, 0, 0, 1350); bg.addColorStop(0, '#3b2a5c'); bg.addColorStop(1, '#1d1530');
+    g.fillStyle = bg; g.fillRect(0, 0, 1080, 1350);
+    for (let i = 0; i < 60; i++) { g.fillStyle = ['#ff6b6b', '#ffd43b', '#51cf66', '#339af0', '#da77f2'][i % 5]; g.save(); g.translate((i * 197) % 1080, (i * 331) % 1350); g.rotate(i); g.fillRect(0, 0, 18, 30); g.restore(); }
+    g.textAlign = 'center'; g.fillStyle = '#fff'; g.font = '900 64px ' + F; g.fillText('テーブルクロス引き（仮）', 540, 190);
+    g.fillStyle = '#ffd43b'; g.font = '900 360px ' + F; g.fillText(String(lastResult.streak), 540, 700);
+    g.fillStyle = '#fff'; g.font = '900 72px ' + F; g.fillText('連続成功', 540, 810);
+    g.fillStyle = '#ffd43b'; g.font = '900 64px ' + F; g.fillText('称号：' + rankFor(lastResult.streak, CFG), 540, 930);
+    g.fillStyle = '#fff'; g.font = '700 48px ' + F; g.fillText(lastResult.title, 540, 1030);
+    g.fillStyle = '#c9c0e0'; g.font = '700 44px ' + F; g.fillText('自己ベスト ' + lastResult.best + ' 連続', 540, 1110);
+    g.fillText('#' + CFG.share.hashtag, 540, 1250);
+    return c;
+  }
+  async function share() {
+    const url = CFG.share.url || (/^https?:/.test(location.href) ? location.href.split('#')[0] : '');
+    const text = shareText(lastResult.streak, lastResult.best, CFG, url);
+    if (matchMedia('(pointer: coarse)').matches && navigator.share && navigator.canShare) {
+      try {
+        const blob = await new Promise(r => resultCanvas().toBlob(r, 'image/png'));
+        const file = new File([blob], 'tablecloth-pull.png', { type: 'image/png' });
+        if (navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], text: text + (url ? ' ' + url : '') }); return; }
+      } catch (e) { if (e && e.name === 'AbortError') return; }
+    }
+    window.open(tweetUrl(text, url), '_blank', 'noopener');
+  }
+  $('shareBtn').addEventListener('click', share);
+
   function gameOver(kind) {
     state = 'over';
     SFX.fail();
-    if (streak > best) { best = streak; saveBest(); }
+    const isNew = streak > best;
+    if (isNew) { best = streak; saveBest(); }
     refreshHud();
-    $('overTitle').textContent = kind === 'slow' ? '引きずって落ちた…' : '跳ねて割れた…';
+    const names = failedNames(round.ids, round.verdict, CFG), title = overTitle(names, kind, failedAllSoft(round.ids, round.verdict, CFG));
+    $('overTitle').textContent = title;
     $('overScore').textContent = streak;
+    $('overNew').classList.toggle('on', isNew);
+    $('overRank').textContent = '称号：' + rankFor(streak, CFG);
     $('overBest').textContent = '自己ベスト ' + best + ' 連続';
+    lastResult = { streak, best, title };
     $('overScr').classList.add('on');
     hint.classList.remove('on');
   }
@@ -220,6 +257,8 @@
 
   // 検証用：スワイプなしで、指定の速さで引いたことにする
   window.__tc = {
+    shareImage: () => resultCanvas().toDataURL(),
+    setResult: r => { lastResult = r; },
     spawn: ids => { if (round) { scene.remove(round.group); round.dispose(); } nextIds = ids; spawnRound(); },
     pull: s => { if (state === 'aim') commitPull(s); return state; },
     state: () => ({ state, streak, best, range, shattered: round && round.shattered }),

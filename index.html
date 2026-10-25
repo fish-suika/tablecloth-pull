@@ -70,6 +70,11 @@
   .screen h1{font-size:calc(var(--u)*11);font-weight:900;line-height:1.25;text-shadow:0 3px 0 rgba(0,0,0,.4)}
   .screen h2{font-size:calc(var(--u)*8);font-weight:900}
   .screen p{font-size:calc(var(--u)*4.4);line-height:1.7;font-weight:700}
+  #overNew{display:none;padding:calc(var(--u)*1) calc(var(--u)*5);border-radius:calc(var(--u)*5);background:#ff6b6b;color:#fff;font-weight:900;font-size:calc(var(--u)*5);animation:bump .5s ease-out}
+  #overNew.on{display:block}
+  .rank{font-size:calc(var(--u)*5.2);color:#ffd43b;font-weight:900}
+  .sbtn{border:1px solid rgba(255,255,255,.45);background:transparent;color:#fff;border-radius:calc(var(--u)*4);padding:calc(var(--u)*1.8) calc(var(--u)*6);font-size:calc(var(--u)*3.8);font-weight:700}
+  .sbtn:active{background:rgba(255,255,255,.15)}
   .big{font-size:calc(var(--u)*22);font-weight:900;color:#ffd43b;line-height:1;font-variant-numeric:tabular-nums}
   .btn{border:0;border-radius:calc(var(--u)*5);padding:calc(var(--u)*3.4) calc(var(--u)*10);font-size:calc(var(--u)*6);font-weight:900;background:#ffd43b;color:#3b2a00;box-shadow:0 calc(var(--u)*1) 0 #c99a00}
   .btn:active{transform:translateY(2px);box-shadow:0 calc(var(--u)*.4) 0 #c99a00}
@@ -105,8 +110,11 @@
     <h2 id="overTitle">失敗…</h2>
     <p>連続成功</p>
     <div class="big" id="overScore">0</div>
+    <div id="overNew">新記録！</div>
+    <p class="nw rank" id="overRank"></p>
     <p class="nw" id="overBest"></p>
     <button class="btn" id="againBtn">もう一回</button>
+    <button class="sbtn" id="shareBtn">Xで共有</button>
   </div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -135,6 +143,14 @@ const CFG = {
     pot:      { name: '鉄鍋', lo: 4.0, hi: 7.2 },
     cake:     { name: 'ケーキ', lo: 2.8, hi: 4.8 },
     tower:    { name: 'シャンパンタワー', lo: 3.0, hi: 4.6 },
+    // 13連続〜：高そうで壊れやすい物（幅が狭い）
+    fishbowl: { name: '金魚の水槽', lo: 3.0, hi: 4.4 },
+    vase:     { name: '高そうな花瓶', lo: 3.2, hi: 4.6 },
+    cardTower:{ name: 'トランプタワー', lo: 3.3, hi: 4.3 },
+    // 20連続〜：ばかばかしい物。soft＝割れずに「ぽんっ」と散る（猫・雪だるま）
+    cat:      { name: '寝ている猫', lo: 2.8, hi: 4.4, soft: true },
+    crown:    { name: '王様の冠', lo: 2.2, hi: 4.0 },
+    snowman:  { name: '雪だるま', lo: 2.6, hi: 4.2, soft: true },
   },
   // 難しさの目標：[連続数, そのテーブル全体の成功の幅の目標]（間は直線でつなぐ。20連続以降は最後の値）。
   // 載る物は、tier の条件を満たす組み合わせのうち、この目標の幅に近いものを選ぶ → 連続するほど幅が狭くなる
@@ -145,8 +161,18 @@ const CFG = {
     { upTo: 3,  count: [1, 1], pool: ['paperCup', 'plate', 'glass'], minW: 0, top: 1 },
     { upTo: 7,  count: [2, 3], pool: ['plate', 'glass', 'paperCup', 'candle', 'pot'], minW: 1.0 },
     { upTo: 12, count: [1, 3], pool: ['cake', 'tower', 'candle', 'glass', 'plate', 'paperCup', 'pot'], must: ['cake', 'tower'], minW: 0.8 },
-    { upTo: Infinity, count: [2, 3], pool: ['paperCup', 'plate', 'glass', 'candle', 'pot', 'cake', 'tower'], minW: 0.7 },
+    // 12〜19連続（13個目〜20個目）：高そうな物が必ず1つ入る
+    { upTo: 20, count: [1, 3], pool: ['fishbowl', 'vase', 'cardTower', 'tower', 'cake', 'candle', 'glass', 'pot', 'plate'], must: ['fishbowl', 'vase', 'cardTower'], minW: 0.7 },
+    // 20連続〜：ばかばかしい物が必ず1つ入る。あとはランダム
+    { upTo: Infinity, count: [1, 3], pool: ['cat', 'crown', 'snowman', 'fishbowl', 'vase', 'cardTower', 'tower', 'cake', 'candle', 'glass', 'pot', 'plate', 'paperCup'], must: ['cat', 'crown', 'snowman'], minW: 0.6 },
   ],
+  // 結果画面の称号：from 連続以上
+  rank: [
+    { from: 0,  name: 'はじめの一歩' }, { from: 3,  name: 'テーブル見習い' }, { from: 6,  name: 'クロス引き職人' },
+    { from: 10, name: '宴会の達人' }, { from: 15, name: '神業の名人' }, { from: 20, name: '人間国宝' }, { from: 30, name: 'テーブルクロス王' },
+  ],
+  // X 共有：hashtag は「#」なし。url は公開したら入れる（空なら、いま開いているページの URL を使う）
+  share: { hashtag: 'テーブルクロス引き', url: '' },
   // 褒め言葉：from 連続以上で使う。連続数が増えるほど大きく褒める。near はギリギリ成功のとき
   praise: {
     ok: [
@@ -166,6 +192,8 @@ const CFG = {
   shard: {
     paperCup: [0xffffff, 0xe8575a], plate: [0xf6efe3, 0xf29bb7], glass: [0xcfeeff, 0xff5d73], candle: [0xfff3d6, 0xffb43a],
     pot: [0x34353b, 0x888b94], cake: [0xfff0f3, 0xe03148], tower: [0xcfeeff, 0xffd86b],
+    fishbowl: [0xcfeeff, 0xff8a1f], vase: [0xf4f7ff, 0x2f5fd0], cardTower: [0xffffff, 0xe03148],
+    cat: [0xf2a65a, 0xfff3e0], crown: [0xffd43b, 0xe03148], snowman: [0xffffff, 0xff8a1f],
   },
   // 画面の揺れ（カメラ）：pull＝引いた瞬間（速さに比例）、shatter＝割れた瞬間、milestone＝節目
   shake: { pull: 0.012, pullMax: 0.1, shatter: 0.16, milestone: 0.08, decay: 5 },
@@ -298,6 +326,26 @@ function confettiCount(count, cfg) {
 function glowTier(count) { return count >= 20 ? 3 : count >= 12 ? 2 : count >= 5 ? 1 : 0; }
 // 引いた瞬間の画面の揺れの強さ（速いほど強い）
 function pullShake(speed, cfg) { return Math.min(cfg.shake.pullMax, speed * cfg.shake.pull); }
+
+// ---- 結果画面・共有 ----
+// 称号（連続数に応じて）
+function rankFor(streak, cfg) { let r = cfg.rank[0]; for (const x of cfg.rank) if (streak >= x.from) r = x; return r.name; }
+// 失敗した物の名前（判定の per から）。例：['グラス', '鉄鍋']
+function failedNames(ids, verdict, cfg) { return ids.filter((id, i) => verdict.per[i].result !== 'ok').map(id => cfg.items[id].name); }
+// 失敗の見出し。例：「グラスと鉄鍋が引きずられて落ちた…」
+function overTitle(names, result, allSoft) {
+  const who = names.length ? names.join('と') + 'が' : '';
+  return who + (result === 'slow' ? '引きずられて落ちた…' : allSoft ? '跳ね上がって散った…' : '跳ね上がって割れた…');
+}
+// 失敗した物がぜんぶ「割れない物」（猫・雪だるま）か
+function failedAllSoft(ids, verdict, cfg) { const f = ids.filter((id, i) => verdict.per[i].result !== 'ok'); return f.length > 0 && f.every(id => cfg.items[id].soft); }
+// X に投稿する文章（url が空なら文章だけ）
+function shareText(streak, best, cfg, url) {
+  const head = streak > 0 ? 'テーブルクロス引きで ' + streak + '連続成功！（' + rankFor(streak, cfg) + '）' : 'テーブルクロス引きに挑戦！';
+  return head + (best > streak ? ' 自己ベスト' + best + '連続' : '') + ' #' + cfg.share.hashtag;
+}
+// PC 用：X の投稿画面を開く URL
+function tweetUrl(text, url) { return 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(text) + (url ? '&url=' + encodeURIComponent(url) : ''); }
 // ===== 3D の場面：テーブル・クロス・物・割れる破片 =====
 // 物理エンジンは使わない。結果は判定ロジックで先に決まっていて、ここはその結果に合う動きを再生するだけ。
 // クロスは「経路（テーブルの上→手前の垂れ→床）」に沿って布の点が滑っていく作り。
@@ -536,7 +584,7 @@ function makeRound(itemIds) {
     const n = 26, sc = CFG.shard[it.id] || [0xcfeeff, 0xff5d73];
     for (let i = 0; i < n; i++) {
       const sz = 0.05 + Math.random() * 0.08;
-      const m = new THREE.Mesh(new THREE.BoxGeometry(sz, sz * 0.5, sz * 1.4),
+      const m = new THREE.Mesh((CFG.items[it.id] && CFG.items[it.id].soft) ? new THREE.SphereGeometry(sz * 1.1, 8, 6) : new THREE.BoxGeometry(sz, sz * 0.5, sz * 1.4),   // 猫・雪だるまは割れずにふわっと散る
         new THREE.MeshStandardMaterial({ color: i % 4 === 0 ? sc[1] : sc[0], transparent: true, opacity: 0.9 }));
       m.position.set(it.x, Math.max(it.y, 0.05) + 0.2, it.z);
       const a = Math.random() * Math.PI * 2, sp = 1 + Math.random() * 2.6;
@@ -621,6 +669,107 @@ function makeRound(itemIds) {
   };
   return R;
 }
+// ===== Phase 4 の物：13連続〜の高そうな物、20連続〜のばかばかしい物 =====
+// 30-scene.js の std / add / castAll を使う。原点は物の底、高さはおよそ 0.9〜1.4
+
+// 金魚の水槽：丸いガラスの鉢に水と金魚
+function buildFishbowl() {
+  const g = new THREE.Group();
+  add(g, new THREE.CylinderGeometry(0.3, 0.34, 0.08, 20), std(0xb98a4f, { roughness: 0.5 }), 0, 0.04, 0);
+  add(g, new THREE.SphereGeometry(0.5, 24, 18), std(0xbfe6ff, { transparent: true, opacity: 0.35, roughness: 0.05, side: THREE.DoubleSide }), 0, 0.58, 0);
+  add(g, new THREE.SphereGeometry(0.46, 24, 14, 0, Math.PI * 2, Math.PI * 0.32, Math.PI * 0.68), std(0x62b8ff, { transparent: true, opacity: 0.5, roughness: 0.1 }), 0, 0.58, 0);
+  const fish = std(0xff8a1f, { roughness: 0.4 });
+  add(g, new THREE.SphereGeometry(0.1, 12, 10), fish, 0.05, 0.55, 0).scale.set(1.5, 1, 0.8);
+  add(g, new THREE.ConeGeometry(0.07, 0.14, 8), fish, -0.13, 0.55, 0).rotation.z = Math.PI / 2;
+  add(g, new THREE.SphereGeometry(0.02, 6, 6), std(0x222222), 0.14, 0.58, 0.07);
+  add(g, new THREE.TorusGeometry(0.2, 0.025, 8, 24), std(0xdff3ff, { transparent: true, opacity: 0.6 }), 0, 1.04, 0).rotation.x = Math.PI / 2;
+  return castAll(g);
+}
+
+// 高そうな花瓶：白地に青い帯、金のふち、花つき
+function buildVase() {
+  const g = new THREE.Group();
+  const pts = [[0, 0], [0.22, 0], [0.24, 0.05], [0.4, 0.35], [0.42, 0.55], [0.3, 0.85], [0.16, 1.05], [0.15, 1.25], [0.22, 1.35], [0.2, 1.36], [0, 1.3]].map(p => new THREE.Vector2(p[0], p[1]));
+  add(g, new THREE.LatheGeometry(pts, 28), std(0xf4f7ff, { roughness: 0.2, side: THREE.DoubleSide }), 0, 0, 0);
+  add(g, new THREE.CylinderGeometry(0.415, 0.405, 0.1, 28), std(0x2f5fd0, { roughness: 0.3 }), 0, 0.45, 0);
+  add(g, new THREE.CylinderGeometry(0.28, 0.26, 0.07, 24), std(0x2f5fd0, { roughness: 0.3 }), 0, 0.88, 0);
+  add(g, new THREE.TorusGeometry(0.21, 0.02, 8, 24), std(0xe8b923, { metalness: 0.7, roughness: 0.3 }), 0, 1.36, 0).rotation.x = Math.PI / 2;
+  const flowers = [[0xff6b8b, -0.05, 1.5], [0xffd43b, 0.08, 1.46], [0xffa8c5, 0.0, 1.58]];
+  for (const [c, x, y] of flowers) add(g, new THREE.SphereGeometry(0.09, 10, 8), std(c, { roughness: 0.6 }), x, y, 0);
+  add(g, new THREE.CylinderGeometry(0.01, 0.01, 0.3, 6), std(0x2f9e44), 0, 1.4, 0);
+  return castAll(g);
+}
+
+// トランプタワー：A 字に立てかけたカードを3段
+function buildCardTower() {
+  const g = new THREE.Group();
+  const card = std(0xffffff, { roughness: 0.5 }), back = std(0xe03148, { roughness: 0.5 });
+  const cw = 0.36, ch = 0.5, lean = 0.34, tiers = 3;
+  for (let t = 0; t < tiers; t++) {
+    const n = tiers - t, y = t * (ch * Math.cos(lean) + 0.02), width = n * 0.34;
+    for (let i = 0; i < n; i++) {
+      const cx = -width / 2 + 0.17 + i * 0.34;
+      for (const s of [-1, 1]) {
+        const m = add(g, new THREE.BoxGeometry(cw, ch, 0.012), (i + t) % 2 ? back : card, cx + s * 0.085, y + ch / 2 * Math.cos(lean) + 0.01, 0);
+        m.rotation.z = -s * lean;
+        m.rotation.y = 0.0;
+      }
+    }
+    // 段の天板
+    if (n > 0) add(g, new THREE.BoxGeometry(width + 0.1, 0.012, cw), card, 0, y + ch * Math.cos(lean) + 0.02, 0);
+  }
+  return castAll(g);
+}
+
+// 寝ている猫：丸まったオレンジの猫。目は閉じ、しっぽを巻く
+function buildCat() {
+  const g = new THREE.Group();
+  const fur = std(0xf2a65a, { roughness: 0.9 }), cream = std(0xfff3e0, { roughness: 0.9 });
+  add(g, new THREE.SphereGeometry(0.42, 20, 16), fur, 0, 0.3, 0).scale.set(1.15, 0.7, 0.9);
+  add(g, new THREE.SphereGeometry(0.27, 18, 14), fur, 0.38, 0.36, 0.1);
+  add(g, new THREE.SphereGeometry(0.14, 12, 10), cream, 0.5, 0.3, 0.2).scale.set(1, 0.7, 1);
+  for (const s of [-1, 1]) {
+    add(g, new THREE.ConeGeometry(0.075, 0.16, 8), fur, 0.36, 0.62, 0.1 + s * 0.15);
+    add(g, new THREE.BoxGeometry(0.1, 0.012, 0.012), std(0x4a2f1a), 0.55, 0.42, 0.1 + s * 0.09);   // 閉じた目
+  }
+  add(g, new THREE.SphereGeometry(0.03, 8, 6), std(0xe8758a), 0.64, 0.34, 0.1);
+  const tail = add(g, new THREE.TorusGeometry(0.3, 0.07, 10, 20, Math.PI * 1.3), fur, -0.1, 0.12, 0.22); tail.rotation.x = Math.PI / 2; tail.rotation.z = 2.4;
+  for (let i = 0; i < 3; i++) add(g, new THREE.BoxGeometry(0.06, 0.012, 0.012), std(0xd9822b), -0.1 + i * 0.12, 0.52 - Math.abs(i - 1) * 0.02, 0);   // しま
+  return castAll(g);
+}
+
+// 王様の冠：金の輪、とがった先、宝石、赤いクッション
+function buildCrown() {
+  const g = new THREE.Group();
+  const gold = std(0xffd43b, { metalness: 0.8, roughness: 0.25 });
+  add(g, new THREE.CylinderGeometry(0.34, 0.38, 0.12, 24), std(0xb3243c, { roughness: 0.9 }), 0, 0.06, 0);
+  add(g, new THREE.CylinderGeometry(0.3, 0.3, 0.22, 24, 1, true), gold, 0, 0.23, 0).material.side = THREE.DoubleSide;
+  const gems = [0xe03148, 0x339af0, 0x51cf66, 0xda77f2, 0xff922b];
+  for (let i = 0; i < 5; i++) {
+    const a = i / 5 * Math.PI * 2, x = Math.cos(a) * 0.27, z = Math.sin(a) * 0.27;
+    add(g, new THREE.ConeGeometry(0.075, 0.28, 6), gold, x, 0.48, z);
+    add(g, new THREE.SphereGeometry(0.04, 8, 6), std(gems[i], { roughness: 0.2 }), x, 0.64, z);
+    add(g, new THREE.SphereGeometry(0.035, 8, 6), std(gems[(i + 2) % 5], { roughness: 0.2 }), Math.cos(a) * 0.3, 0.23, Math.sin(a) * 0.3);
+  }
+  return castAll(g);
+}
+
+// 雪だるま：2段の雪玉、にんじんの鼻、ボタン、黒い帽子
+function buildSnowman() {
+  const g = new THREE.Group();
+  const snow = std(0xffffff, { roughness: 0.95 });
+  add(g, new THREE.SphereGeometry(0.42, 20, 16), snow, 0, 0.4, 0);
+  add(g, new THREE.SphereGeometry(0.3, 20, 16), snow, 0, 0.98, 0);
+  add(g, new THREE.ConeGeometry(0.04, 0.22, 8), std(0xff8a1f), 0, 1.0, 0.33).rotation.x = Math.PI / 2;
+  for (const s of [-1, 1]) add(g, new THREE.SphereGeometry(0.03, 8, 6), std(0x222222), s * 0.1, 1.08, 0.27);
+  for (let i = 0; i < 3; i++) add(g, new THREE.SphereGeometry(0.04, 8, 6), std(0x222222), 0, 0.6 - i * 0.14, 0.4 - i * 0.03);
+  add(g, new THREE.CylinderGeometry(0.2, 0.2, 0.04, 20), std(0x222233), 0, 1.24, 0);
+  add(g, new THREE.CylinderGeometry(0.14, 0.14, 0.2, 20), std(0x222233), 0, 1.35, 0);
+  add(g, new THREE.CylinderGeometry(0.145, 0.145, 0.04, 20), std(0xe03148), 0, 1.29, 0);
+  return castAll(g);
+}
+
+Object.assign(ITEM_BUILDERS, { fishbowl: buildFishbowl, vase: buildVase, cardTower: buildCardTower, cat: buildCat, crown: buildCrown, snowman: buildSnowman });
 // ===== 効果音（Web Audio で合成。音源ファイルなし） =====
 // 使えない環境・まだ操作がない状態では何もしない（遊びは止まらない）
 const SFX = (function () {
@@ -713,6 +862,9 @@ const SFX = (function () {
     drag() { noise('lowpass', 500, 220, 0.6, 0.45, 0, 2); },             // 引きずられる
     launch() { tone('sine', 280, 1400, 0.45, 0.22); noise('bandpass', 1200, 3000, 0.4, 0.15); },   // ロケットのように飛ぶ
     shatter(kind) {
+      if (kind === 'cat') { tone('sawtooth', 520, 900, 0.16, 0.12); tone('sawtooth', 900, 420, 0.3, 0.12, 0.16); noise('lowpass', 600, 200, 0.2, 0.25); return; }   // にゃーん
+      if (kind === 'snowman') { noise('lowpass', 900, 200, 0.4, 0.4); tone('sine', 300, 120, 0.3, 0.2); return; }                                              // ぼふっ
+      if (kind === 'crown') { for (let i = 0; i < 6; i++) tone('triangle', 1800 + Math.random() * 2500, 1500, 0.2, 0.12, Math.random() * 0.25); noise('highpass', 4000, 7000, 0.15, 0.2); return; }   // 金属のチャリーン
       for (let i = 0; i < 10; i++) noise('highpass', 3000 + Math.random() * 2500, 6000, 0.07, 0.3, Math.random() * 0.22, 0.8);
       if (kind === 'pot') { tone('square', 190, 90, 0.35, 0.28); noise('lowpass', 900, 200, 0.3, 0.4); }          // 鉄鍋はガラスでなくガシャン
       else if (kind === 'cake') { noise('lowpass', 700, 150, 0.25, 0.4); tone('sine', 180, 60, 0.25, 0.3); }      // ケーキはぐしゃ
@@ -828,14 +980,51 @@ const SFX = (function () {
     spawnRound();
   }
 
+  let lastResult = { streak: 0, best: 0, title: '' };
+
+  // ---- X 共有：スマホは画像つき（Web Share API）、PC は X の投稿画面（文章＋URL。画像は自動では付けられない） ----
+  function resultCanvas() {
+    const c = document.createElement('canvas'); c.width = 1080; c.height = 1350;
+    const g = c.getContext('2d'), F = '"Hiragino Kaku Gothic ProN","Yu Gothic","Meiryo",sans-serif';
+    const bg = g.createLinearGradient(0, 0, 0, 1350); bg.addColorStop(0, '#3b2a5c'); bg.addColorStop(1, '#1d1530');
+    g.fillStyle = bg; g.fillRect(0, 0, 1080, 1350);
+    for (let i = 0; i < 60; i++) { g.fillStyle = ['#ff6b6b', '#ffd43b', '#51cf66', '#339af0', '#da77f2'][i % 5]; g.save(); g.translate((i * 197) % 1080, (i * 331) % 1350); g.rotate(i); g.fillRect(0, 0, 18, 30); g.restore(); }
+    g.textAlign = 'center'; g.fillStyle = '#fff'; g.font = '900 64px ' + F; g.fillText('テーブルクロス引き（仮）', 540, 190);
+    g.fillStyle = '#ffd43b'; g.font = '900 360px ' + F; g.fillText(String(lastResult.streak), 540, 700);
+    g.fillStyle = '#fff'; g.font = '900 72px ' + F; g.fillText('連続成功', 540, 810);
+    g.fillStyle = '#ffd43b'; g.font = '900 64px ' + F; g.fillText('称号：' + rankFor(lastResult.streak, CFG), 540, 930);
+    g.fillStyle = '#fff'; g.font = '700 48px ' + F; g.fillText(lastResult.title, 540, 1030);
+    g.fillStyle = '#c9c0e0'; g.font = '700 44px ' + F; g.fillText('自己ベスト ' + lastResult.best + ' 連続', 540, 1110);
+    g.fillText('#' + CFG.share.hashtag, 540, 1250);
+    return c;
+  }
+  async function share() {
+    const url = CFG.share.url || (/^https?:/.test(location.href) ? location.href.split('#')[0] : '');
+    const text = shareText(lastResult.streak, lastResult.best, CFG, url);
+    if (matchMedia('(pointer: coarse)').matches && navigator.share && navigator.canShare) {
+      try {
+        const blob = await new Promise(r => resultCanvas().toBlob(r, 'image/png'));
+        const file = new File([blob], 'tablecloth-pull.png', { type: 'image/png' });
+        if (navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], text: text + (url ? ' ' + url : '') }); return; }
+      } catch (e) { if (e && e.name === 'AbortError') return; }
+    }
+    window.open(tweetUrl(text, url), '_blank', 'noopener');
+  }
+  $('shareBtn').addEventListener('click', share);
+
   function gameOver(kind) {
     state = 'over';
     SFX.fail();
-    if (streak > best) { best = streak; saveBest(); }
+    const isNew = streak > best;
+    if (isNew) { best = streak; saveBest(); }
     refreshHud();
-    $('overTitle').textContent = kind === 'slow' ? '引きずって落ちた…' : '跳ねて割れた…';
+    const names = failedNames(round.ids, round.verdict, CFG), title = overTitle(names, kind, failedAllSoft(round.ids, round.verdict, CFG));
+    $('overTitle').textContent = title;
     $('overScore').textContent = streak;
+    $('overNew').classList.toggle('on', isNew);
+    $('overRank').textContent = '称号：' + rankFor(streak, CFG);
     $('overBest').textContent = '自己ベスト ' + best + ' 連続';
+    lastResult = { streak, best, title };
     $('overScr').classList.add('on');
     hint.classList.remove('on');
   }
@@ -945,6 +1134,8 @@ const SFX = (function () {
 
   // 検証用：スワイプなしで、指定の速さで引いたことにする
   window.__tc = {
+    shareImage: () => resultCanvas().toDataURL(),
+    setResult: r => { lastResult = r; },
     spawn: ids => { if (round) { scene.remove(round.group); round.dispose(); } nextIds = ids; spawnRound(); },
     pull: s => { if (state === 'aim') commitPull(s); return state; },
     state: () => ({ state, streak, best, range, shattered: round && round.shattered }),

@@ -7,6 +7,7 @@ cat src/00-head.html \
     src/10-config.js \
     src/20-logic.js \
     src/30-scene.js \
+    src/31-items-p4.js \
     src/22-sound.js \
     src/90-boot.js \
     src/99-tail.html > tablecloth-pull.html
@@ -19,6 +20,7 @@ cat src/verify-head.html \
     src/verify-tests.js \
     src/verify-tests-p3.js \
     src/verify-tests-p4.js \
+    src/verify-tests-p5.js \
     src/verify-sum.js \
     src/99-tail.html > verify.html
 

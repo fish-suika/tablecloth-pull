@@ -118,3 +118,23 @@ function confettiCount(count, cfg) {
 function glowTier(count) { return count >= 20 ? 3 : count >= 12 ? 2 : count >= 5 ? 1 : 0; }
 // 引いた瞬間の画面の揺れの強さ（速いほど強い）
 function pullShake(speed, cfg) { return Math.min(cfg.shake.pullMax, speed * cfg.shake.pull); }
+
+// ---- 結果画面・共有 ----
+// 称号（連続数に応じて）
+function rankFor(streak, cfg) { let r = cfg.rank[0]; for (const x of cfg.rank) if (streak >= x.from) r = x; return r.name; }
+// 失敗した物の名前（判定の per から）。例：['グラス', '鉄鍋']
+function failedNames(ids, verdict, cfg) { return ids.filter((id, i) => verdict.per[i].result !== 'ok').map(id => cfg.items[id].name); }
+// 失敗の見出し。例：「グラスと鉄鍋が引きずられて落ちた…」
+function overTitle(names, result, allSoft) {
+  const who = names.length ? names.join('と') + 'が' : '';
+  return who + (result === 'slow' ? '引きずられて落ちた…' : allSoft ? '跳ね上がって散った…' : '跳ね上がって割れた…');
+}
+// 失敗した物がぜんぶ「割れない物」（猫・雪だるま）か
+function failedAllSoft(ids, verdict, cfg) { const f = ids.filter((id, i) => verdict.per[i].result !== 'ok'); return f.length > 0 && f.every(id => cfg.items[id].soft); }
+// X に投稿する文章（url が空なら文章だけ）
+function shareText(streak, best, cfg, url) {
+  const head = streak > 0 ? 'テーブルクロス引きで ' + streak + '連続成功！（' + rankFor(streak, cfg) + '）' : 'テーブルクロス引きに挑戦！';
+  return head + (best > streak ? ' 自己ベスト' + best + '連続' : '') + ' #' + cfg.share.hashtag;
+}
+// PC 用：X の投稿画面を開く URL
+function tweetUrl(text, url) { return 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(text) + (url ? '&url=' + encodeURIComponent(url) : ''); }
