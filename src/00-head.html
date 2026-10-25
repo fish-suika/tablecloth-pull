@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>テーブルクロス引き（仮）</title>
+<style>
+  :root{--u:3.75px;--ink:#2b2433;--bg:#2a1f3d;--jp:"Hiragino Kaku Gothic ProN","Yu Gothic","YuGothic","Meiryo","Noto Sans JP",sans-serif}
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{width:100%;height:100%;overflow:hidden;background:#141018;color:var(--ink);font-family:var(--jp);touch-action:none;user-select:none;-webkit-user-select:none;overscroll-behavior:none;-webkit-touch-callout:none}
+  html,body{height:100vh;height:100dvh}
+  body{word-break:auto-phrase;overflow-wrap:anywhere;line-break:strict}
+  p,h1,h2{text-wrap:balance}
+  button{font-family:var(--jp);touch-action:manipulation;cursor:pointer}
+  .nw{white-space:nowrap}
+  .ph{display:inline-block}
+
+  #stage{position:fixed;top:0;height:100vh;left:50%;transform:translateX(-50%);width:min(100vw,56.25vh);overflow:hidden;background:var(--bg);box-shadow:0 0 0 1px rgba(255,255,255,.08),0 0 60px rgba(0,0,0,.7);touch-action:none}
+  @supports (height:100dvh){#stage{height:100dvh;width:min(100vw,56.25dvh)}}
+  #view{position:absolute;inset:0;overflow:hidden}
+  #view canvas{display:block;width:100%;height:100%}
+
+  #hud{position:absolute;left:0;right:0;top:0;z-index:5;pointer-events:none;padding:calc(env(safe-area-inset-top) + var(--u)*2.5) calc(var(--u)*3) 0;opacity:0;transition:opacity .25s}
+  #hud.on{opacity:1}
+  .row{display:flex;gap:calc(var(--u)*2);align-items:stretch}
+  .chip{display:flex;align-items:center;justify-content:center;gap:calc(var(--u)*1.4);padding:0 calc(var(--u)*3);height:calc(var(--u)*10);border-radius:calc(var(--u)*3);background:rgba(255,255,255,.9);box-shadow:0 2px 0 rgba(0,0,0,.2);font-weight:900;line-height:1.1;white-space:nowrap}
+  .chip small{font-size:calc(var(--u)*2.8);letter-spacing:.1em;opacity:.65;font-weight:700}
+  .chip b{font-size:calc(var(--u)*6.5);font-variant-numeric:tabular-nums}
+  #streakBox{flex:1.4} #streakBox b{color:#e8590c}
+  #bestBox{flex:1}
+  #streakBox.bump{animation:bump .3s ease-out}
+  @keyframes bump{0%{transform:scale(1)}35%{transform:scale(1.2)}100%{transform:scale(1)}}
+  .ibtn{pointer-events:auto;flex:none;width:calc(var(--u)*10);height:calc(var(--u)*10);border:0;border-radius:calc(var(--u)*3);background:rgba(255,255,255,.9);box-shadow:0 2px 0 rgba(0,0,0,.2);font-size:calc(var(--u)*4.4);font-weight:900;color:var(--ink)}
+  .ibtn:active{transform:translateY(1px)}
+  .ibtn.off{opacity:.55}
+
+  /* 速さメーター（上部、HUD の下） */
+  #meter{position:absolute;left:calc(var(--u)*5);right:calc(var(--u)*5);top:calc(env(safe-area-inset-top) + var(--u)*17);z-index:5;pointer-events:none;opacity:0;transition:opacity .2s}
+  #meter.on{opacity:1}
+  #meterBar{position:relative;height:calc(var(--u)*7);border-radius:calc(var(--u)*3.5);background:rgba(20,16,24,.72);box-shadow:0 2px 0 rgba(0,0,0,.25);overflow:hidden}
+  #meterZone{position:absolute;top:0;bottom:0;background:linear-gradient(180deg,#8ff0a4,#37b24d);opacity:.95;display:none}
+  #meterZone.pre{opacity:.55}
+  #meterMark{position:absolute;top:0;bottom:0;width:calc(var(--u)*1.4);margin-left:calc(var(--u)*-.7);background:#fff;border-radius:calc(var(--u)*.7);box-shadow:0 0 calc(var(--u)*2) #fff;left:0}
+  #meterMark.bad{background:#ff6b6b;box-shadow:0 0 calc(var(--u)*2) #ff6b6b}
+  #meterLab{display:flex;justify-content:space-between;margin-top:calc(var(--u)*1.2);font-size:calc(var(--u)*3);font-weight:900;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.7)}
+
+  #pops{position:absolute;left:50%;top:44%;z-index:6;pointer-events:none}
+  .pop{position:absolute;left:0;transform:translateX(-50%);font-size:calc(var(--u)*11);font-weight:900;white-space:nowrap;-webkit-text-stroke:calc(var(--u)*.8) #fff;paint-order:stroke fill;animation:floatUp 1.2s ease-out forwards}
+  .pop.good{color:#2b8a3e} .pop.great{color:#e8890c;font-size:calc(var(--u)*13)} .pop.bad{color:#e03131}
+  @keyframes floatUp{0%{opacity:0;margin-top:calc(var(--u)*3);scale:.6}15%{opacity:1;scale:1.15}30%{scale:1}100%{opacity:0;margin-top:calc(var(--u)*-16)}}
+
+  #hint{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom) + var(--u)*8);z-index:5;pointer-events:none;text-align:center;color:#fff;font-size:calc(var(--u)*4.4);font-weight:900;text-shadow:0 2px 6px rgba(0,0,0,.7);opacity:0;transition:opacity .2s}
+  #hint.on{opacity:1}
+  #hint .arrow{display:block;font-size:calc(var(--u)*9);animation:nudge 1s ease-in-out infinite}
+  @keyframes nudge{0%,100%{transform:translateY(0)}50%{transform:translateY(calc(var(--u)*3))}}
+
+  .screen{position:absolute;inset:0;z-index:10;display:none;flex-direction:column;align-items:center;justify-content:safe center;gap:calc(var(--u)*4);padding:calc(var(--u)*8);background:rgba(20,14,30,.72);color:#fff;text-align:center;overflow:auto}
+  .screen.on{display:flex}
+  .screen h1{font-size:calc(var(--u)*11);font-weight:900;line-height:1.25;text-shadow:0 3px 0 rgba(0,0,0,.4)}
+  .screen h2{font-size:calc(var(--u)*8);font-weight:900}
+  .screen p{font-size:calc(var(--u)*4.4);line-height:1.7;font-weight:700}
+  .big{font-size:calc(var(--u)*22);font-weight:900;color:#ffd43b;line-height:1;font-variant-numeric:tabular-nums}
+  .btn{border:0;border-radius:calc(var(--u)*5);padding:calc(var(--u)*3.4) calc(var(--u)*10);font-size:calc(var(--u)*6);font-weight:900;background:#ffd43b;color:#3b2a00;box-shadow:0 calc(var(--u)*1) 0 #c99a00}
+  .btn:active{transform:translateY(2px);box-shadow:0 calc(var(--u)*.4) 0 #c99a00}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="view"></div>
+  <div id="hud">
+    <div class="row">
+      <div class="chip" id="streakBox"><small>連続</small><b id="streak">0</b></div>
+      <div class="chip" id="bestBox"><small>自己ベスト</small><b id="best">0</b></div>
+      <button class="ibtn" id="zoneBtn" title="成功の幅を先に見せる／隠す">幅</button>
+    </div>
+  </div>
+  <div id="meter">
+    <div id="meterBar"><div id="meterZone"></div><div id="meterMark"></div></div>
+    <div id="meterLab"><span>遅い</span><span id="meterVal"></span><span>速い</span></div>
+  </div>
+  <div id="pops"></div>
+  <div id="hint"><span class="arrow">▼</span><span class="ph">下へ</span><span class="ph">ちょうどいい速さで</span><span class="ph">スワイプ</span></div>
+
+  <div class="screen on" id="titleScr">
+    <h1><span class="ph">テーブル</span><span class="ph">クロス引き</span><br><span class="nw" style="font-size:.5em">（仮）</span></h1>
+    <p><span class="ph">ちょうどいい速さで</span><span class="ph">クロスを引き抜け。</span><br><span class="ph">遅いと引きずられ、</span><span class="ph">速いと跳ね上がる。</span></p>
+    <p class="nw">自己ベスト <b id="titleBest">0</b> 連続</p>
+    <button class="btn" id="startBtn">はじめる</button>
+  </div>
+  <div class="screen" id="overScr">
+    <h2 id="overTitle">失敗…</h2>
+    <p>連続成功</p>
+    <div class="big" id="overScore">0</div>
+    <p class="nw" id="overBest"></p>
+    <button class="btn" id="againBtn">もう一回</button>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+"use strict";
