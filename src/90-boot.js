@@ -141,7 +141,7 @@
     const isNew = streak > best;
     if (isNew) { best = streak; saveBest(); }
     refreshHud();
-    const names = failedNames(round.ids, round.verdict, CFG), title = overTitle(names, kind, failedAllSoft(round.ids, round.verdict, CFG));
+    const names = failedNames(round.ids, round.verdict, CFG), title = overTitle(names, kind, failedFate(round.ids, round.verdict, CFG));
     $('overTitle').textContent = title;
     $('overScore').textContent = streak;
     $('overNew').classList.toggle('on', isNew);
@@ -257,6 +257,8 @@
 
   // 検証用：スワイプなしで、指定の速さで引いたことにする
   window.__tc = {
+    mem: () => JSON.stringify(renderer.info.memory) + ' tex=' + renderer.info.memory.textures,
+    pressShare: () => share(),
     shareImage: () => resultCanvas().toDataURL(),
     setResult: r => { lastResult = r; },
     spawn: ids => { if (round) { scene.remove(round.group); round.dispose(); } nextIds = ids; spawnRound(); },

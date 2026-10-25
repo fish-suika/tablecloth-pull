@@ -50,7 +50,7 @@
   .pop.good{color:#2b8a3e} .pop.great{color:#e8890c;font-size:calc(var(--u)*13)} .pop.bad{color:#e03131}
   @keyframes floatUp{0%{opacity:0;margin-top:calc(var(--u)*3);scale:.6}15%{opacity:1;scale:1.15}30%{scale:1}100%{opacity:0;margin-top:calc(var(--u)*-16)}}
 
-  .pop.epic{color:#d6336c;font-size:calc(var(--u)*15)}
+  .pop.epic{color:#d6336c;font-size:calc(var(--u)*12)}
   .pop.mile{top:calc(var(--u)*-17);color:#7048e8;font-size:calc(var(--u)*13);animation-duration:1.5s}
   #streakBox.t1{background:#fff3bf;box-shadow:0 2px 0 rgba(0,0,0,.2),0 0 calc(var(--u)*2.5) #ffe066}
   #streakBox.t2{background:#ffd8a8;box-shadow:0 2px 0 rgba(0,0,0,.2),0 0 calc(var(--u)*3.5) #ff922b}
@@ -136,22 +136,23 @@ const CFG = {
   items: {
     // lo〜hi が「ちょうどいい速さ」。遅いと引きずられ、速いと跳ねる
     // 軽い物は速すぎると飛ぶ（上限が低い）、重い物は速めでないと引きずる（下限が高い）、背が高い物は幅が狭い
-    paperCup: { name: '紙コップ', lo: 1.4, hi: 3.6 },
-    plate:    { name: 'お皿', lo: 2.0, hi: 5.6 },
-    glass:    { name: 'グラス', lo: 2.2, hi: 5.0 },
-    candle:   { name: 'ろうそく', lo: 2.6, hi: 4.4 },
-    pot:      { name: '鉄鍋', lo: 4.0, hi: 7.2 },
-    cake:     { name: 'ケーキ', lo: 2.8, hi: 4.8 },
-    tower:    { name: 'シャンパンタワー', lo: 3.0, hi: 4.6 },
+    paperCup: { name: '紙コップ', lo: 1.4, hi: 3.6, fate: 'fly' },
+    plate:    { name: 'お皿', lo: 2.0, hi: 5.6, fate: 'break' },
+    glass:    { name: 'グラス', lo: 2.2, hi: 5.0, fate: 'break' },
+    candle:   { name: 'ろうそく', lo: 2.6, hi: 4.4, fate: 'fly' },
+    pot:      { name: '鉄鍋', lo: 4.0, hi: 7.2, fate: 'fly' },
+    cake:     { name: 'ケーキ', lo: 2.8, hi: 4.8, fate: 'crumble' },
+    tower:    { name: 'シャンパンタワー', lo: 3.0, hi: 4.6, fate: 'crumble' },
     // 13連続〜：高そうで壊れやすい物（幅が狭い）
-    fishbowl: { name: '金魚の水槽', lo: 3.0, hi: 4.4 },
-    vase:     { name: '高そうな花瓶', lo: 3.2, hi: 4.6 },
-    cardTower:{ name: 'トランプタワー', lo: 3.3, hi: 4.3 },
+    fishbowl: { name: '金魚の水槽', lo: 3.0, hi: 4.4, fate: 'break' },
+    vase:     { name: '高そうな花瓶', lo: 3.2, hi: 4.6, fate: 'break' },
+    cardTower:{ name: 'トランプタワー', lo: 3.3, hi: 4.3, fate: 'crumble' },
     // 20連続〜：ばかばかしい物。soft＝割れずに「ぽんっ」と散る（猫・雪だるま）
-    cat:      { name: '寝ている猫', lo: 2.8, hi: 4.4, soft: true },
-    crown:    { name: '王様の冠', lo: 2.2, hi: 4.0 },
-    snowman:  { name: '雪だるま', lo: 2.6, hi: 4.2, soft: true },
+    cat:      { name: '寝ている猫', lo: 2.8, hi: 4.4, fate: 'scatter', soft: true },
+    crown:    { name: '王様の冠', lo: 2.2, hi: 4.0, fate: 'fly' },
+    snowman:  { name: '雪だるま', lo: 2.6, hi: 4.2, fate: 'scatter', soft: true },
   },
+  // fate＝失敗したときの最期（結果画面の見出しの言い方）：break＝割れた、crumble＝崩れた、scatter＝散った、fly＝吹っ飛んだ
   // 難しさの目標：[連続数, そのテーブル全体の成功の幅の目標]（間は直線でつなぐ。20連続以降は最後の値）。
   // 載る物は、tier の条件を満たす組み合わせのうち、この目標の幅に近いものを選ぶ → 連続するほど幅が狭くなる
   difficulty: [[0, 4.7], [1, 3.7], [2, 2.9], [3, 2.7], [7, 2.3], [12, 1.7], [20, 1.0]],
@@ -333,12 +334,17 @@ function rankFor(streak, cfg) { let r = cfg.rank[0]; for (const x of cfg.rank) i
 // 失敗した物の名前（判定の per から）。例：['グラス', '鉄鍋']
 function failedNames(ids, verdict, cfg) { return ids.filter((id, i) => verdict.per[i].result !== 'ok').map(id => cfg.items[id].name); }
 // 失敗の見出し。例：「グラスと鉄鍋が引きずられて落ちた…」
-function overTitle(names, result, allSoft) {
+function overTitle(names, result, fate) {
   const who = names.length ? names.join('と') + 'が' : '';
-  return who + (result === 'slow' ? '引きずられて落ちた…' : allSoft ? '跳ね上がって散った…' : '跳ね上がって割れた…');
+  if (result === 'slow') return who + '引きずられて落ちた…';
+  const end = { break: '割れた', crumble: '崩れた', scatter: '散った', fly: '吹っ飛んだ' }[fate] || '大惨事に';
+  return who + '跳ね上がって' + end + '…';
 }
-// 失敗した物がぜんぶ「割れない物」（猫・雪だるま）か
-function failedAllSoft(ids, verdict, cfg) { const f = ids.filter((id, i) => verdict.per[i].result !== 'ok'); return f.length > 0 && f.every(id => cfg.items[id].soft); }
+// 失敗した物の最期（fate）。全員同じならそれ、違う最期が混ざっていれば 'mixed'
+function failedFate(ids, verdict, cfg) {
+  const f = ids.filter((id, i) => verdict.per[i].result !== 'ok').map(id => cfg.items[id].fate);
+  return f.length && f.every(x => x === f[0]) ? f[0] : 'mixed';
+}
 // X に投稿する文章（url が空なら文章だけ）
 function shareText(streak, best, cfg, url) {
   const head = streak > 0 ? 'テーブルクロス引きで ' + streak + '連続成功！（' + rankFor(streak, cfg) + '）' : 'テーブルクロス引きに挑戦！';
@@ -1047,7 +1053,7 @@ const SFX = (function () {
     const isNew = streak > best;
     if (isNew) { best = streak; saveBest(); }
     refreshHud();
-    const names = failedNames(round.ids, round.verdict, CFG), title = overTitle(names, kind, failedAllSoft(round.ids, round.verdict, CFG));
+    const names = failedNames(round.ids, round.verdict, CFG), title = overTitle(names, kind, failedFate(round.ids, round.verdict, CFG));
     $('overTitle').textContent = title;
     $('overScore').textContent = streak;
     $('overNew').classList.toggle('on', isNew);
@@ -1163,6 +1169,8 @@ const SFX = (function () {
 
   // 検証用：スワイプなしで、指定の速さで引いたことにする
   window.__tc = {
+    mem: () => JSON.stringify(renderer.info.memory) + ' tex=' + renderer.info.memory.textures,
+    pressShare: () => share(),
     shareImage: () => resultCanvas().toDataURL(),
     setResult: r => { lastResult = r; },
     spawn: ids => { if (round) { scene.remove(round.group); round.dispose(); } nextIds = ids; spawnRound(); },

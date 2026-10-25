@@ -14,22 +14,23 @@ const CFG = {
   items: {
     // lo〜hi が「ちょうどいい速さ」。遅いと引きずられ、速いと跳ねる
     // 軽い物は速すぎると飛ぶ（上限が低い）、重い物は速めでないと引きずる（下限が高い）、背が高い物は幅が狭い
-    paperCup: { name: '紙コップ', lo: 1.4, hi: 3.6 },
-    plate:    { name: 'お皿', lo: 2.0, hi: 5.6 },
-    glass:    { name: 'グラス', lo: 2.2, hi: 5.0 },
-    candle:   { name: 'ろうそく', lo: 2.6, hi: 4.4 },
-    pot:      { name: '鉄鍋', lo: 4.0, hi: 7.2 },
-    cake:     { name: 'ケーキ', lo: 2.8, hi: 4.8 },
-    tower:    { name: 'シャンパンタワー', lo: 3.0, hi: 4.6 },
+    paperCup: { name: '紙コップ', lo: 1.4, hi: 3.6, fate: 'fly' },
+    plate:    { name: 'お皿', lo: 2.0, hi: 5.6, fate: 'break' },
+    glass:    { name: 'グラス', lo: 2.2, hi: 5.0, fate: 'break' },
+    candle:   { name: 'ろうそく', lo: 2.6, hi: 4.4, fate: 'fly' },
+    pot:      { name: '鉄鍋', lo: 4.0, hi: 7.2, fate: 'fly' },
+    cake:     { name: 'ケーキ', lo: 2.8, hi: 4.8, fate: 'crumble' },
+    tower:    { name: 'シャンパンタワー', lo: 3.0, hi: 4.6, fate: 'crumble' },
     // 13連続〜：高そうで壊れやすい物（幅が狭い）
-    fishbowl: { name: '金魚の水槽', lo: 3.0, hi: 4.4 },
-    vase:     { name: '高そうな花瓶', lo: 3.2, hi: 4.6 },
-    cardTower:{ name: 'トランプタワー', lo: 3.3, hi: 4.3 },
+    fishbowl: { name: '金魚の水槽', lo: 3.0, hi: 4.4, fate: 'break' },
+    vase:     { name: '高そうな花瓶', lo: 3.2, hi: 4.6, fate: 'break' },
+    cardTower:{ name: 'トランプタワー', lo: 3.3, hi: 4.3, fate: 'crumble' },
     // 20連続〜：ばかばかしい物。soft＝割れずに「ぽんっ」と散る（猫・雪だるま）
-    cat:      { name: '寝ている猫', lo: 2.8, hi: 4.4, soft: true },
-    crown:    { name: '王様の冠', lo: 2.2, hi: 4.0 },
-    snowman:  { name: '雪だるま', lo: 2.6, hi: 4.2, soft: true },
+    cat:      { name: '寝ている猫', lo: 2.8, hi: 4.4, fate: 'scatter', soft: true },
+    crown:    { name: '王様の冠', lo: 2.2, hi: 4.0, fate: 'fly' },
+    snowman:  { name: '雪だるま', lo: 2.6, hi: 4.2, fate: 'scatter', soft: true },
   },
+  // fate＝失敗したときの最期（結果画面の見出しの言い方）：break＝割れた、crumble＝崩れた、scatter＝散った、fly＝吹っ飛んだ
   // 難しさの目標：[連続数, そのテーブル全体の成功の幅の目標]（間は直線でつなぐ。20連続以降は最後の値）。
   // 載る物は、tier の条件を満たす組み合わせのうち、この目標の幅に近いものを選ぶ → 連続するほど幅が狭くなる
   difficulty: [[0, 4.7], [1, 3.7], [2, 2.9], [3, 2.7], [7, 2.3], [12, 1.7], [20, 1.0]],

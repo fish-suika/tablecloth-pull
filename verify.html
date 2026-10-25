@@ -36,22 +36,23 @@ const CFG = {
   items: {
     // lo〜hi が「ちょうどいい速さ」。遅いと引きずられ、速いと跳ねる
     // 軽い物は速すぎると飛ぶ（上限が低い）、重い物は速めでないと引きずる（下限が高い）、背が高い物は幅が狭い
-    paperCup: { name: '紙コップ', lo: 1.4, hi: 3.6 },
-    plate:    { name: 'お皿', lo: 2.0, hi: 5.6 },
-    glass:    { name: 'グラス', lo: 2.2, hi: 5.0 },
-    candle:   { name: 'ろうそく', lo: 2.6, hi: 4.4 },
-    pot:      { name: '鉄鍋', lo: 4.0, hi: 7.2 },
-    cake:     { name: 'ケーキ', lo: 2.8, hi: 4.8 },
-    tower:    { name: 'シャンパンタワー', lo: 3.0, hi: 4.6 },
+    paperCup: { name: '紙コップ', lo: 1.4, hi: 3.6, fate: 'fly' },
+    plate:    { name: 'お皿', lo: 2.0, hi: 5.6, fate: 'break' },
+    glass:    { name: 'グラス', lo: 2.2, hi: 5.0, fate: 'break' },
+    candle:   { name: 'ろうそく', lo: 2.6, hi: 4.4, fate: 'fly' },
+    pot:      { name: '鉄鍋', lo: 4.0, hi: 7.2, fate: 'fly' },
+    cake:     { name: 'ケーキ', lo: 2.8, hi: 4.8, fate: 'crumble' },
+    tower:    { name: 'シャンパンタワー', lo: 3.0, hi: 4.6, fate: 'crumble' },
     // 13連続〜：高そうで壊れやすい物（幅が狭い）
-    fishbowl: { name: '金魚の水槽', lo: 3.0, hi: 4.4 },
-    vase:     { name: '高そうな花瓶', lo: 3.2, hi: 4.6 },
-    cardTower:{ name: 'トランプタワー', lo: 3.3, hi: 4.3 },
+    fishbowl: { name: '金魚の水槽', lo: 3.0, hi: 4.4, fate: 'break' },
+    vase:     { name: '高そうな花瓶', lo: 3.2, hi: 4.6, fate: 'break' },
+    cardTower:{ name: 'トランプタワー', lo: 3.3, hi: 4.3, fate: 'crumble' },
     // 20連続〜：ばかばかしい物。soft＝割れずに「ぽんっ」と散る（猫・雪だるま）
-    cat:      { name: '寝ている猫', lo: 2.8, hi: 4.4, soft: true },
-    crown:    { name: '王様の冠', lo: 2.2, hi: 4.0 },
-    snowman:  { name: '雪だるま', lo: 2.6, hi: 4.2, soft: true },
+    cat:      { name: '寝ている猫', lo: 2.8, hi: 4.4, fate: 'scatter', soft: true },
+    crown:    { name: '王様の冠', lo: 2.2, hi: 4.0, fate: 'fly' },
+    snowman:  { name: '雪だるま', lo: 2.6, hi: 4.2, fate: 'scatter', soft: true },
   },
+  // fate＝失敗したときの最期（結果画面の見出しの言い方）：break＝割れた、crumble＝崩れた、scatter＝散った、fly＝吹っ飛んだ
   // 難しさの目標：[連続数, そのテーブル全体の成功の幅の目標]（間は直線でつなぐ。20連続以降は最後の値）。
   // 載る物は、tier の条件を満たす組み合わせのうち、この目標の幅に近いものを選ぶ → 連続するほど幅が狭くなる
   difficulty: [[0, 4.7], [1, 3.7], [2, 2.9], [3, 2.7], [7, 2.3], [12, 1.7], [20, 1.0]],
@@ -233,12 +234,17 @@ function rankFor(streak, cfg) { let r = cfg.rank[0]; for (const x of cfg.rank) i
 // 失敗した物の名前（判定の per から）。例：['グラス', '鉄鍋']
 function failedNames(ids, verdict, cfg) { return ids.filter((id, i) => verdict.per[i].result !== 'ok').map(id => cfg.items[id].name); }
 // 失敗の見出し。例：「グラスと鉄鍋が引きずられて落ちた…」
-function overTitle(names, result, allSoft) {
+function overTitle(names, result, fate) {
   const who = names.length ? names.join('と') + 'が' : '';
-  return who + (result === 'slow' ? '引きずられて落ちた…' : allSoft ? '跳ね上がって散った…' : '跳ね上がって割れた…');
+  if (result === 'slow') return who + '引きずられて落ちた…';
+  const end = { break: '割れた', crumble: '崩れた', scatter: '散った', fly: '吹っ飛んだ' }[fate] || '大惨事に';
+  return who + '跳ね上がって' + end + '…';
 }
-// 失敗した物がぜんぶ「割れない物」（猫・雪だるま）か
-function failedAllSoft(ids, verdict, cfg) { const f = ids.filter((id, i) => verdict.per[i].result !== 'ok'); return f.length > 0 && f.every(id => cfg.items[id].soft); }
+// 失敗した物の最期（fate）。全員同じならそれ、違う最期が混ざっていれば 'mixed'
+function failedFate(ids, verdict, cfg) {
+  const f = ids.filter((id, i) => verdict.per[i].result !== 'ok').map(id => cfg.items[id].fate);
+  return f.length && f.every(x => x === f[0]) ? f[0] : 'mixed';
+}
 // X に投稿する文章（url が空なら文章だけ）
 function shareText(streak, best, cfg, url) {
   const head = streak > 0 ? 'テーブルクロス引きで ' + streak + '連続成功！（' + rankFor(streak, cfg) + '）' : 'テーブルクロス引きに挑戦！';
@@ -369,14 +375,16 @@ check('猫と雪だるまは割れずに散る（soft）、それ以外は割れ
 check('称号は連続数で上がる', rankFor(0, CFG) === 'はじめの一歩' && rankFor(3, CFG) === 'テーブル見習い' && rankFor(10, CFG) === '宴会の達人' && rankFor(99, CFG) === 'テーブルクロス王');
 check('称号は下がらない（連続数が増えると同じか上）', (() => { let i = -1; for (let s = 0; s <= 40; s++) { const j = CFG.rank.findIndex(x => x.name === rankFor(s, CFG)); if (j < i) return false; i = j; } return true; })());
 check('失敗した物の名前が取れる（成功した物は入らない）', (() => { const ids = ['glass', 'pot']; const v = judgeTable(3.0, ids, 99, CFG); const n = failedNames(ids, v, CFG); return n.length === 1 && n[0] === '鉄鍋'; })());
-check('失敗の見出し：遅い・速い', overTitle(['鉄鍋'], 'slow') === '鉄鍋が引きずられて落ちた…' && overTitle(['グラス', 'お皿'], 'fast') === 'グラスとお皿が跳ね上がって割れた…');
+check('失敗の見出し：遅い・速い・最期の言い方', overTitle(['鉄鍋'], 'slow', 'fly') === '鉄鍋が引きずられて落ちた…' && overTitle(['グラス', 'お皿'], 'fast', 'break') === 'グラスとお皿が跳ね上がって割れた…' && overTitle(['ケーキ'], 'fast', 'crumble') === 'ケーキが跳ね上がって崩れた…' && overTitle(['鉄鍋'], 'fast', 'fly') === '鉄鍋が跳ね上がって吹っ飛んだ…' && overTitle(['グラス', 'ケーキ'], 'fast', 'mixed') === 'グラスとケーキが跳ね上がって大惨事に…');
 check('共有の文章：連続数・称号・ハッシュタグ', (() => { const t = shareText(12, 12, CFG, ''); return t.includes('12連続') && t.includes(rankFor(12, CFG)) && t.includes('#' + CFG.share.hashtag); })());
 check('共有の文章：自己ベストが上なら併記、同じなら省く', shareText(5, 9, CFG, '').includes('自己ベスト9連続') && !shareText(9, 9, CFG, '').includes('自己ベスト'));
 check('共有の文章：0連続でも文章になる', shareText(0, 0, CFG, '').includes('挑戦'));
 check('X の投稿 URL：文章と URL がエンコードされる', (() => { const u = tweetUrl('a b#c', 'https://x.example/g?x=1&y=2'); return u.startsWith('https://twitter.com/intent/tweet?text=a%20b%23c') && u.includes('&url=https%3A%2F%2Fx.example%2Fg%3Fx%3D1%26y%3D2'); })());
 check('X の投稿 URL：URL がなければ付けない', !tweetUrl('abc', '').includes('url='));
 
-check('猫・雪だるまだけが失敗したときは「散った」', (() => { const ids = ['cat', 'glass']; const v = judgeTable(6.0, ['cat'], 99, CFG); return failedAllSoft(['cat'], v, CFG) && overTitle(['寝ている猫'], 'fast', true) === '寝ている猫が跳ね上がって散った…' && !failedAllSoft(['glass'], judgeTable(7, ['glass'], 99, CFG), CFG); })());
+check('失敗した物の最期：同じならそれ・違えば mixed', (() => { const v1 = judgeTable(7.5, ['cat', 'snowman'], 99, CFG), v2 = judgeTable(7.5, ['glass', 'cake'], 99, CFG), v3 = judgeTable(3.2, ['glass', 'pot'], 99, CFG); return failedFate(['cat', 'snowman'], v1, CFG) === 'scatter' && failedFate(['glass', 'cake'], v2, CFG) === 'mixed' && failedFate(['glass', 'pot'], v3, CFG) === 'fly'; })());
+check('すべての物に最期（fate）が決まっている', Object.values(CFG.items).every(i => ['break', 'crumble', 'scatter', 'fly'].includes(i.fate)));
+check('割れない物（soft）の最期は scatter', Object.values(CFG.items).every(i => !i.soft || i.fate === 'scatter'));
 const sumEl = document.getElementById('sum');
 sumEl.textContent = nNg === 0 ? ('全 ' + nOk + ' 件 PASS') : (nNg + ' 件 FAIL / ' + (nOk + nNg) + ' 件');
 sumEl.style.color = nNg === 0 ? '#6bd07a' : '#ff6b6b';

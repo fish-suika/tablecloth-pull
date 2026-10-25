@@ -12,11 +12,13 @@ check('猫と雪だるまは割れずに散る（soft）、それ以外は割れ
 check('称号は連続数で上がる', rankFor(0, CFG) === 'はじめの一歩' && rankFor(3, CFG) === 'テーブル見習い' && rankFor(10, CFG) === '宴会の達人' && rankFor(99, CFG) === 'テーブルクロス王');
 check('称号は下がらない（連続数が増えると同じか上）', (() => { let i = -1; for (let s = 0; s <= 40; s++) { const j = CFG.rank.findIndex(x => x.name === rankFor(s, CFG)); if (j < i) return false; i = j; } return true; })());
 check('失敗した物の名前が取れる（成功した物は入らない）', (() => { const ids = ['glass', 'pot']; const v = judgeTable(3.0, ids, 99, CFG); const n = failedNames(ids, v, CFG); return n.length === 1 && n[0] === '鉄鍋'; })());
-check('失敗の見出し：遅い・速い', overTitle(['鉄鍋'], 'slow') === '鉄鍋が引きずられて落ちた…' && overTitle(['グラス', 'お皿'], 'fast') === 'グラスとお皿が跳ね上がって割れた…');
+check('失敗の見出し：遅い・速い・最期の言い方', overTitle(['鉄鍋'], 'slow', 'fly') === '鉄鍋が引きずられて落ちた…' && overTitle(['グラス', 'お皿'], 'fast', 'break') === 'グラスとお皿が跳ね上がって割れた…' && overTitle(['ケーキ'], 'fast', 'crumble') === 'ケーキが跳ね上がって崩れた…' && overTitle(['鉄鍋'], 'fast', 'fly') === '鉄鍋が跳ね上がって吹っ飛んだ…' && overTitle(['グラス', 'ケーキ'], 'fast', 'mixed') === 'グラスとケーキが跳ね上がって大惨事に…');
 check('共有の文章：連続数・称号・ハッシュタグ', (() => { const t = shareText(12, 12, CFG, ''); return t.includes('12連続') && t.includes(rankFor(12, CFG)) && t.includes('#' + CFG.share.hashtag); })());
 check('共有の文章：自己ベストが上なら併記、同じなら省く', shareText(5, 9, CFG, '').includes('自己ベスト9連続') && !shareText(9, 9, CFG, '').includes('自己ベスト'));
 check('共有の文章：0連続でも文章になる', shareText(0, 0, CFG, '').includes('挑戦'));
 check('X の投稿 URL：文章と URL がエンコードされる', (() => { const u = tweetUrl('a b#c', 'https://x.example/g?x=1&y=2'); return u.startsWith('https://twitter.com/intent/tweet?text=a%20b%23c') && u.includes('&url=https%3A%2F%2Fx.example%2Fg%3Fx%3D1%26y%3D2'); })());
 check('X の投稿 URL：URL がなければ付けない', !tweetUrl('abc', '').includes('url='));
 
-check('猫・雪だるまだけが失敗したときは「散った」', (() => { const ids = ['cat', 'glass']; const v = judgeTable(6.0, ['cat'], 99, CFG); return failedAllSoft(['cat'], v, CFG) && overTitle(['寝ている猫'], 'fast', true) === '寝ている猫が跳ね上がって散った…' && !failedAllSoft(['glass'], judgeTable(7, ['glass'], 99, CFG), CFG); })());
+check('失敗した物の最期：同じならそれ・違えば mixed', (() => { const v1 = judgeTable(7.5, ['cat', 'snowman'], 99, CFG), v2 = judgeTable(7.5, ['glass', 'cake'], 99, CFG), v3 = judgeTable(3.2, ['glass', 'pot'], 99, CFG); return failedFate(['cat', 'snowman'], v1, CFG) === 'scatter' && failedFate(['glass', 'cake'], v2, CFG) === 'mixed' && failedFate(['glass', 'pot'], v3, CFG) === 'fly'; })());
+check('すべての物に最期（fate）が決まっている', Object.values(CFG.items).every(i => ['break', 'crumble', 'scatter', 'fly'].includes(i.fate)));
+check('割れない物（soft）の最期は scatter', Object.values(CFG.items).every(i => !i.soft || i.fate === 'scatter'));

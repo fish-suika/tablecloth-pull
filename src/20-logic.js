@@ -125,12 +125,17 @@ function rankFor(streak, cfg) { let r = cfg.rank[0]; for (const x of cfg.rank) i
 // 失敗した物の名前（判定の per から）。例：['グラス', '鉄鍋']
 function failedNames(ids, verdict, cfg) { return ids.filter((id, i) => verdict.per[i].result !== 'ok').map(id => cfg.items[id].name); }
 // 失敗の見出し。例：「グラスと鉄鍋が引きずられて落ちた…」
-function overTitle(names, result, allSoft) {
+function overTitle(names, result, fate) {
   const who = names.length ? names.join('と') + 'が' : '';
-  return who + (result === 'slow' ? '引きずられて落ちた…' : allSoft ? '跳ね上がって散った…' : '跳ね上がって割れた…');
+  if (result === 'slow') return who + '引きずられて落ちた…';
+  const end = { break: '割れた', crumble: '崩れた', scatter: '散った', fly: '吹っ飛んだ' }[fate] || '大惨事に';
+  return who + '跳ね上がって' + end + '…';
 }
-// 失敗した物がぜんぶ「割れない物」（猫・雪だるま）か
-function failedAllSoft(ids, verdict, cfg) { const f = ids.filter((id, i) => verdict.per[i].result !== 'ok'); return f.length > 0 && f.every(id => cfg.items[id].soft); }
+// 失敗した物の最期（fate）。全員同じならそれ、違う最期が混ざっていれば 'mixed'
+function failedFate(ids, verdict, cfg) {
+  const f = ids.filter((id, i) => verdict.per[i].result !== 'ok').map(id => cfg.items[id].fate);
+  return f.length && f.every(x => x === f[0]) ? f[0] : 'mixed';
+}
 // X に投稿する文章（url が空なら文章だけ）
 function shareText(streak, best, cfg, url) {
   const head = streak > 0 ? 'テーブルクロス引きで ' + streak + '連続成功！（' + rankFor(streak, cfg) + '）' : 'テーブルクロス引きに挑戦！';
