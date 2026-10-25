@@ -22,10 +22,13 @@ const CFG = {
     cake:     { name: 'ケーキ', lo: 2.8, hi: 4.8 },
     tower:    { name: 'シャンパンタワー', lo: 3.0, hi: 4.6 },
   },
-  // 連続成功数ごとの載る物。upTo＝この連続数未満のあいだ。count＝物の数、must＝このうち1つは必ず入れる、
+  // 難しさの目標：[連続数, そのテーブル全体の成功の幅の目標]（間は直線でつなぐ。20連続以降は最後の値）。
+  // 載る物は、tier の条件を満たす組み合わせのうち、この目標の幅に近いものを選ぶ → 連続するほど幅が狭くなる
+  difficulty: [[0, 4.7], [1, 3.7], [2, 2.9], [3, 2.7], [7, 2.3], [12, 1.7], [20, 1.0]],
+  // 連続成功数ごとの載る物。upTo＝この連続数未満のあいだ。top＝目標に近い上位何個からランダムに選ぶか（既定3。1なら毎回いちばん近いもの＝序盤は決まった順）、count＝物の数、must＝このうち1つは必ず入れる、
   // minW＝幅の重なりがこれ未満になる組み合わせは出さない（理不尽防止）
   tiers: [
-    { upTo: 3,  count: [1, 1], pool: ['paperCup', 'plate', 'glass'], minW: 0 },
+    { upTo: 3,  count: [1, 1], pool: ['paperCup', 'plate', 'glass'], minW: 0, top: 1 },
     { upTo: 7,  count: [2, 3], pool: ['plate', 'glass', 'paperCup', 'candle', 'pot'], minW: 1.0 },
     { upTo: 12, count: [1, 3], pool: ['cake', 'tower', 'candle', 'glass', 'plate', 'paperCup', 'pot'], must: ['cake', 'tower'], minW: 0.8 },
     { upTo: Infinity, count: [2, 3], pool: ['paperCup', 'plate', 'glass', 'candle', 'pot', 'cake', 'tower'], minW: 0.7 },

@@ -48,9 +48,22 @@ function meterPos(speed, cfg) { return Math.min(1, Math.max(0, speed / cfg.speed
 function tierOf(streak, cfg) { return cfg.tiers.find(t => streak < t.upTo); }
 
 // 連続成功数 streak のテーブルに載せる物の id の配列。rng は 0〜1 の乱数（検証では固定の乱数を渡す）
+// 難しさの目標の幅（連続数 → そのテーブル全体の成功の幅）。cfg.difficulty の点の間を直線でつなぐ
+function targetWidth(streak, cfg) {
+  const d = cfg.difficulty;
+  if (streak <= d[0][0]) return d[0][1];
+  for (let i = 1; i < d.length; i++) {
+    if (streak <= d[i][0]) { const k = (streak - d[i - 1][0]) / (d[i][0] - d[i - 1][0]); return d[i - 1][1] + (d[i][1] - d[i - 1][1]) * k; }
+  }
+  return d[d.length - 1][1];
+}
+// 載せる物の組み合わせのテーブル全体の成功の幅（倍率はかけ、最初の数テーブルの広げは含めない）
+function tableWidth(ids, cfg) { const r = combineRanges(ids.map(id => itemRange(cfg.items[id], 99, cfg))); return r.empty ? 0 : r.hi - r.lo; }
+
+// 条件を満たす組み合わせを集め、目標の幅に近い順の上位 t.top（既定3）個からランダムに1つ選ぶ（毎回同じにならないように）
 function pickTable(streak, rng, cfg) {
-  const t = tierOf(streak, cfg);
-  for (let k = 0; k < 60; k++) {
+  const t = tierOf(streak, cfg), target = targetWidth(streak, cfg), seen = new Set(), cands = [];
+  for (let k = 0; k < 80; k++) {
     const n = Math.min(t.pool.length, t.count[0] + Math.floor(rng() * (t.count[1] - t.count[0] + 1)));
     const ids = [];
     if (t.must) ids.push(t.must[Math.floor(rng() * t.must.length)]);
@@ -58,10 +71,15 @@ function pickTable(streak, rng, cfg) {
       const id = t.pool[Math.floor(rng() * t.pool.length)];
       if (!ids.includes(id)) ids.push(id);
     }
-    const r = combineRanges(ids.map(id => itemRange(cfg.items[id], 99, cfg)));   // 倍率をかけた幅で重なりを見る
-    if (!r.empty && r.hi - r.lo >= t.minW) return ids;
+    const key = ids.slice().sort().join();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const w = tableWidth(ids, cfg);
+    if (w > 0 && w >= t.minW) cands.push({ ids, d: Math.abs(w - target) });
   }
-  return [t.must ? t.must[0] : t.pool[0]];          // 見つからなければ1つだけ載せる
+  if (!cands.length) return [t.must ? t.must[0] : t.pool[0]];          // 見つからなければ1つだけ載せる
+  cands.sort((a, b) => a.d - b.d);
+  return cands[Math.floor(rng() * Math.min(t.top || 3, cands.length))].ids;
 }
 
 // そのテーブルの判定。全員の幅の重なり（最初の数テーブルは広げた幅）の中なら成功。
