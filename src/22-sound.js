@@ -4,7 +4,22 @@ const SFX = (function () {
   let ctx = null, master = null, noiseBuf = null, muted = false;
   try { muted = localStorage.getItem('tablecloth-pull-mute') === '1'; } catch (e) { }
 
-  function unlock() {                         // 最初の操作のときに呼ぶ（iPhone などは操作の中でしか音を出せない）
+  // iPhone は Web Audio だけだとサイレントスイッチで消音される。無音の <audio> を回しておくと「メディア再生」扱いになり、スイッチに関係なく鳴る
+  let keep = null;
+  function startKeepAlive() {
+    try {
+      const n = 4000, b = new Uint8Array(44 + n), v = new DataView(b.buffer);   // 8kHz・8bit・モノラルの無音 WAV
+      const w = (o, s) => { for (let i = 0; i < s.length; i++) b[o + i] = s.charCodeAt(i); };
+      w(0, 'RIFF'); v.setUint32(4, 36 + n, true); w(8, 'WAVEfmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+      v.setUint32(24, 8000, true); v.setUint32(28, 8000, true); v.setUint16(32, 1, true); v.setUint16(34, 8, true); w(36, 'data'); v.setUint32(40, n, true);
+      b.fill(128, 44);
+      keep = document.createElement('audio');
+      keep.src = URL.createObjectURL(new Blob([b], { type: 'audio/wav' }));
+      keep.loop = true; keep.setAttribute('playsinline', '');
+      const p = keep.play(); if (p && p.catch) p.catch(() => { keep = null; });
+    } catch (e) { keep = null; }
+  }
+  function unlock() {                         // 操作のたびに呼ぶ（iPhone などは操作の中でしか音を出せない。pointerdown では足りず、離したとき・タップ完了のときに有効になる）
     try {
       if (!ctx) {
         ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -12,7 +27,11 @@ const SFX = (function () {
         noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 1.5, ctx.sampleRate);
         const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
       }
-      if (ctx.state === 'suspended') ctx.resume();
+      if (ctx.state !== 'running') {
+        ctx.resume();
+        const s = ctx.createBufferSource(); s.buffer = ctx.createBuffer(1, 1, 22050); s.connect(ctx.destination); s.start(0);   // 無音を鳴らして有効化する
+      }
+      if (!keep) startKeepAlive(); else if (keep.paused) { const p = keep.play(); if (p && p.catch) p.catch(() => { }); }
     } catch (e) { ctx = null; }
   }
   function setMuted(m) {
@@ -77,6 +96,7 @@ const SFX = (function () {
       else { for (let i = 0; i < 4; i++) tone('sine', 2200 + Math.random() * 2800, 2000, 0.12, 0.12, Math.random() * 0.2); }
     },
     fail() { [392, 330, 262, 196].forEach((f, i) => tone('triangle', f, f * 0.96, 0.28, 0.22, 0.25 + i * 0.16)); },   // しょんぼりした下降
+    blip() { tone('sine', 660, 990, 0.12, 0.25); },                      // 「♪」を押したときの確認音
     milestone() { [523, 659, 784, 1047, 1319].forEach((f, i) => tone('square', f, f, 0.12, 0.12, i * 0.06)); cheer(10); },
   };
 })();

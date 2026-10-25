@@ -73,8 +73,8 @@
     mVal.textContent = '速さ ' + speed.toFixed(1);
   }
   $('soundBtn').classList.toggle('off', SFX.isMuted());
-  $('soundBtn').addEventListener('click', e => { e.stopPropagation(); SFX.unlock(); SFX.setMuted(!SFX.isMuted()); $('soundBtn').classList.toggle('off', SFX.isMuted()); });
-  addEventListener('pointerdown', () => SFX.unlock(), { capture: true });
+  $('soundBtn').addEventListener('click', e => { e.stopPropagation(); SFX.unlock(); SFX.setMuted(!SFX.isMuted()); $('soundBtn').classList.toggle('off', SFX.isMuted()); if (!SFX.isMuted()) setTimeout(SFX.blip, 80); });
+  for (const ev of ['pointerdown', 'pointerup', 'touchend', 'click']) addEventListener(ev, () => SFX.unlock(), { capture: true });
   $('zoneBtn').addEventListener('click', e => { e.stopPropagation(); showZone = !showZone; setZoneView(); });
 
   function spawnRound() {
